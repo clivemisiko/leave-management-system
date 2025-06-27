@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Leave Application PDF</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 30px; }
+        h2 { text-align: center; }
+        table { width: 100%; margin-top: 20px; }
+        td { padding: 8px; }
+        th { text-align: left; }
+    </style>
+</head>
+<body>
+    <h2>Leave Application Form</h2>
+    <table>
+        <tr><th>Name:</th><td>{{ app.name }}</td></tr>
+        <tr><th>P/No:</th><td>{{ app.pno }}</td></tr>
+        <tr><th>Designation:</th><td>{{ app.designation }}</td></tr>
+        <tr><th>Leave Days:</th><td>{{ app.leave_days }}</td></tr>
+        <tr><th>Start Date:</th><td>{{ app.start_date }}</td></tr>
+        <tr><th>End Date:</th><td>{{ app.end_date }}</td></tr>
+        <tr><th>Last Leave Start:</th><td>{{ app.last_leave_start }}</td></tr>
+        <tr><th>Last Leave End:</th><td>{{ app.last_leave_end }}</td></tr>
+        <tr><th>Contact Address:</th><td>{{ app.contact_address }}</td></tr>
+        <tr><th>Contact Tel:</th><td>{{ app.contact_tel }}</td></tr>
+        <tr><th>Salary Option:</th><td>{{ app.salary_option }}</td></tr>
+        <tr><th>Salary Address:</th><td>{{ app.salary_address }}</td></tr>
+        <tr><th>Delegate:</th><td>{{ app.delegate }}</td></tr>
+    </table>
+</body>
+</html>
