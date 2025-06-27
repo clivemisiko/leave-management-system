@@ -1,11 +1,11 @@
 from flask import Flask
 from datetime import datetime
 from flask_mail import Mail
-from flask_sqlalchemy import SQLAlchemy
+
 from config import Config
 from .extensions import mysql, mail
 
-db = SQLAlchemy()
+
 
 def create_app():
     app = Flask(__name__, template_folder='../templates', static_folder='../static')
@@ -16,7 +16,7 @@ def create_app():
     # Initialize extensions
     mysql.init_app(app)
     mail.init_app(app)
-    db.init_app(app)
+ 
 
     # Optional MySQL connection test
     with app.app_context():
