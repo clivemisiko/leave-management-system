@@ -366,6 +366,9 @@ def reject_application(id):
 @admin_bp.route('/application/print/<int:id>')
 @admin_required
 def print_application(id):
+    import os
+    from flask import current_app
+
     cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     cur.execute("""
         SELECT la.*,
@@ -402,11 +405,12 @@ def print_application(id):
             except ValueError:
                 application[field] = None
 
-    # ✅ Determine PDF template
+    # ✅ Determine template
     template = 'admin/pdf_template_hod.html' if application['is_hod'] else 'admin/pdf_template_staff.html'
 
-    # ✅ Pass logo URL to template
-    logo_url = url_for('static', filename='images/kenya_logo.png', _external=True)
+    # ✅ Use file:// path for logo
+    logo_path = os.path.join(current_app.root_path, 'static/images/kenya_logo.png')
+    logo_url = f'file://{logo_path}'
 
     # ✅ Render and generate PDF
     rendered = render_template(template, app=application, logo_url=logo_url)
@@ -418,5 +422,6 @@ def print_application(id):
     response.headers['Content-Type'] = 'application/pdf'
     response.headers['Content-Disposition'] = f'inline; filename=leave_application_{id}.pdf'
     return response
+
 
 

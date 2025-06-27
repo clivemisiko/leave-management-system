@@ -497,6 +497,9 @@ def create_staff_application():
 @staff_bp.route('/application/download/<int:app_id>')
 @staff_required
 def download_application_pdf(app_id):
+    import os
+    from flask import current_app
+
     cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
     # ✅ Fetch the leave application
@@ -524,8 +527,9 @@ def download_application_pdf(app_id):
     # ✅ Determine PDF template
     template_name = 'admin/pdf_template_staff.html' if app.get('user_type') == 'Staff' else 'pdf_template_hod.html'
 
-    # ✅ Pass logo URL to template
-    logo_url = url_for('static', filename='images/kenya_logo.png', _external=True)
+    # ✅ Use local file path for logo (file://)
+    logo_path = os.path.join(current_app.root_path, 'static/images/kenya_logo.png')
+    logo_url = f'file://{logo_path}'
 
     # ✅ Render HTML and generate PDF
     rendered = render_template(template_name, app=app, logo_url=logo_url)
@@ -535,6 +539,7 @@ def download_application_pdf(app_id):
     response.headers['Content-Type'] = 'application/pdf'
     response.headers['Content-Disposition'] = f'inline; filename=leave_application_{app_id}.pdf'
     return response
+
 
 
 @staff_bp.route('/logout')
