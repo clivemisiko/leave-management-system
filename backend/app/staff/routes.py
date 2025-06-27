@@ -12,7 +12,7 @@ from datetime import datetime
 from flask import render_template, session
 import MySQLdb.cursors
 #from flask_wtf.csrf import CSRFProtect
-from app.extensions import mysql
+from ..extensions import mysql
 from flask import current_app
 from itsdangerous import URLSafeTimedSerializer
 from app.utils.email import send_reset_email

@@ -1,7 +1,7 @@
 from flask import Blueprint, current_app, render_template, request, redirect, url_for, flash, session, make_response
 from werkzeug.security import generate_password_hash, check_password_hash
 from weasyprint import HTML, CSS
-from app.extensions import mysql  # ✅ use the correct extension import
+from ..extensions import mysql  # ✅ use the correct extension import
 import MySQLdb.cursors
 import os
 from functools import wraps
