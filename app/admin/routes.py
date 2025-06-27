@@ -367,6 +367,7 @@ def reject_application(id):
 @admin_required
 def print_application(id):
     import os
+    import base64
     from flask import current_app
 
     cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
@@ -396,7 +397,6 @@ def print_application(id):
         flash('Only approved applications can be printed.', 'warning')
         return redirect(url_for('admin.admin_dashboard'))
 
-    # ✅ Format date fields
     for field in ('start_date', 'end_date', 'last_leave_start', 'last_leave_end', 'created_at'):
         val = application.get(field)
         if isinstance(val, str):
@@ -405,15 +405,16 @@ def print_application(id):
             except ValueError:
                 application[field] = None
 
-    # ✅ Determine template
     template = 'admin/pdf_template_hod.html' if application['is_hod'] else 'admin/pdf_template_staff.html'
 
-    # ✅ Use file:// path for logo
+    # ✅ Base64 encode the logo image
     logo_path = os.path.join(current_app.root_path, 'static/images/kenya_logo.png')
-    logo_url = f'file://{logo_path}'
+    with open(logo_path, "rb") as image_file:
+        encoded_logo = base64.b64encode(image_file.read()).decode('utf-8')
+    logo_url = f"data:image/png;base64,{encoded_logo}"
 
-    # ✅ Render and generate PDF
     rendered = render_template(template, app=application, logo_url=logo_url)
+
     pdf = HTML(string=rendered, base_url=request.root_url).write_pdf(
         stylesheets=[CSS(string='@page { margin: 2cm; }')]
     )
@@ -422,6 +423,4 @@ def print_application(id):
     response.headers['Content-Type'] = 'application/pdf'
     response.headers['Content-Disposition'] = f'inline; filename=leave_application_{id}.pdf'
     return response
-
-
 

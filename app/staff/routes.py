@@ -498,11 +498,10 @@ def create_staff_application():
 @staff_required
 def download_application_pdf(app_id):
     import os
+    import base64
     from flask import current_app
 
     cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-
-    # ✅ Fetch the leave application
     cur.execute("""
         SELECT * FROM leave_applications WHERE id = %s AND staff_id = %s
     """, (app_id, session['staff_id']))
@@ -516,22 +515,20 @@ def download_application_pdf(app_id):
         flash("You can only print approved leave applications.", "warning")
         return redirect(url_for('staff.staff_dashboard'))
 
-    # ✅ Fetch current leave balance from staff table
     cur.execute("SELECT leave_balance FROM staff WHERE id = %s", (session['staff_id'],))
     staff_info = cur.fetchone()
     cur.close()
 
-    # ✅ Attach leave_balance to app context for PDF rendering
     app['leave_balance'] = staff_info['leave_balance'] if staff_info else 'N/A'
 
-    # ✅ Determine PDF template
     template_name = 'admin/pdf_template_staff.html' if app.get('user_type') == 'Staff' else 'pdf_template_hod.html'
 
-    # ✅ Use local file path for logo (file://)
+    # ✅ Base64 encode the logo
     logo_path = os.path.join(current_app.root_path, 'static/images/kenya_logo.png')
-    logo_url = f'file://{logo_path}'
+    with open(logo_path, "rb") as image_file:
+        encoded_logo = base64.b64encode(image_file.read()).decode('utf-8')
+    logo_url = f"data:image/png;base64,{encoded_logo}"
 
-    # ✅ Render HTML and generate PDF
     rendered = render_template(template_name, app=app, logo_url=logo_url)
     pdf = HTML(string=rendered, base_url=request.root_url).write_pdf()
 
@@ -539,6 +536,7 @@ def download_application_pdf(app_id):
     response.headers['Content-Type'] = 'application/pdf'
     response.headers['Content-Disposition'] = f'inline; filename=leave_application_{app_id}.pdf'
     return response
+
 
 
 
