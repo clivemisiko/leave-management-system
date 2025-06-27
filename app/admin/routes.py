@@ -368,19 +368,18 @@ def reject_application(id):
 def print_application(id):
     cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     cur.execute("""
-    SELECT la.*,
-       COALESCE(s.username, la.name) AS name,
-       COALESCE(s.pno, la.pno) AS pno,
-       CASE
-           WHEN la.designation LIKE '%%HOD%%'
-                OR la.designation LIKE '%%Head%%'
-           THEN 1
-           ELSE 0
-       END AS is_hod
-FROM leave_applications la
-LEFT JOIN staff s ON la.staff_id = s.id
-WHERE la.id = %s
-
+        SELECT la.*,
+               COALESCE(s.username, la.name) AS name,
+               COALESCE(s.pno, la.pno) AS pno,
+               CASE
+                   WHEN la.designation LIKE '%%HOD%%'
+                        OR la.designation LIKE '%%Head%%'
+                   THEN 1
+                   ELSE 0
+               END AS is_hod
+        FROM leave_applications la
+        LEFT JOIN staff s ON la.staff_id = s.id
+        WHERE la.id = %s
     """, (id,))
     
     application = cur.fetchone()
@@ -390,12 +389,11 @@ WHERE la.id = %s
         flash('Application not found', 'danger')
         return redirect(url_for('admin.admin_dashboard'))
 
-    # 🚫 Block print if not approved
     if application['status'] != 'approved':
         flash('Only approved applications can be printed.', 'warning')
         return redirect(url_for('admin.admin_dashboard'))
 
-    # Format date fields
+    # ✅ Format date fields
     for field in ('start_date', 'end_date', 'last_leave_start', 'last_leave_end', 'created_at'):
         val = application.get(field)
         if isinstance(val, str):
@@ -404,11 +402,14 @@ WHERE la.id = %s
             except ValueError:
                 application[field] = None
 
-
+    # ✅ Determine PDF template
     template = 'admin/pdf_template_hod.html' if application['is_hod'] else 'admin/pdf_template_staff.html'
 
-    rendered = render_template(template, app=application)
+    # ✅ Pass logo URL to template
+    logo_url = url_for('static', filename='images/kenya_logo.png', _external=True)
 
+    # ✅ Render and generate PDF
+    rendered = render_template(template, app=application, logo_url=logo_url)
     pdf = HTML(string=rendered, base_url=request.root_url).write_pdf(
         stylesheets=[CSS(string='@page { margin: 2cm; }')]
     )
@@ -417,4 +418,5 @@ WHERE la.id = %s
     response.headers['Content-Type'] = 'application/pdf'
     response.headers['Content-Disposition'] = f'inline; filename=leave_application_{id}.pdf'
     return response
+
 

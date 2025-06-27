@@ -20,6 +20,10 @@ from app.utils.auth import update_password
 from flask_mail import Message
 from app import mail
 import smtplib
+from flask import render_template, flash, redirect, url_for, session, make_response, request
+from weasyprint import HTML
+from weasyprint import CSS
+
 
 import re  # Add this with your other imports at the top
 from email_validator import validate_email, EmailNotValidError
@@ -517,20 +521,21 @@ def download_application_pdf(app_id):
     # ✅ Attach leave_balance to app context for PDF rendering
     app['leave_balance'] = staff_info['leave_balance'] if staff_info else 'N/A'
 
-    # ✅ Select appropriate template (adjust if you use user_type or separate paths)
+    # ✅ Determine PDF template
     template_name = 'admin/pdf_template_staff.html' if app.get('user_type') == 'Staff' else 'pdf_template_hod.html'
-    
-    # ✅ Render PDF HTML
-    rendered = render_template(template_name, app=app)
 
-    from weasyprint import HTML
-    pdf = HTML(string=rendered).write_pdf()
+    # ✅ Pass logo URL to template
+    logo_url = url_for('static', filename='images/kenya_logo.png', _external=True)
 
-    from flask import make_response
+    # ✅ Render HTML and generate PDF
+    rendered = render_template(template_name, app=app, logo_url=logo_url)
+    pdf = HTML(string=rendered, base_url=request.root_url).write_pdf()
+
     response = make_response(pdf)
     response.headers['Content-Type'] = 'application/pdf'
     response.headers['Content-Disposition'] = f'inline; filename=leave_application_{app_id}.pdf'
     return response
+
 
 @staff_bp.route('/logout')
 def staff_logout():
