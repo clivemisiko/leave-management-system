@@ -524,7 +524,7 @@ def download_application_pdf(app_id):
     rendered = render_template(template_name, app=app)
 
     from weasyprint import HTML
-    pdf = HTML(string=rendered).write_pdf()
+    pdf = HTML(string=rendered, base_url=request.root_url).write_pdf()
 
     from flask import make_response
     response = make_response(pdf)
