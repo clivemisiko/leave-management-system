@@ -1,28 +1,17 @@
 from flask import Blueprint, render_template, request, redirect, url_for, current_app, flash, session
-from werkzeug.security import check_password_hash
-from werkzeug.security import generate_password_hash
-from app import mysql  # assuming mysql is initialized in app/__init__.py
-from flask import render_template, session, redirect, url_for, flash
-from app import mysql
+from werkzeug.security import check_password_hash, generate_password_hash
+from ..extensions import mysql, mail
+from itsdangerous import URLSafeTimedSerializer
+from ..utils.email import send_reset_email
+from ..utils.auth import update_password
+from flask_mail import Message
 from functools import wraps
 from datetime import datetime, timedelta
-from functools import wraps
-from flask import session, redirect, url_for, flash
-from datetime import datetime
-from flask import render_template, session
-import MySQLdb.cursors
-#from flask_wtf.csrf import CSRFProtect
-from ..extensions import mysql
-from flask import current_app
-from itsdangerous import URLSafeTimedSerializer
-from app.utils.email import send_reset_email
-from app.utils.auth import update_password
-from flask_mail import Message
-from app import mail
+import re
 import smtplib
-
-import re  # Add this with your other imports at the top
+import MySQLdb.cursors
 from email_validator import validate_email, EmailNotValidError
+
 
 staff_bp = Blueprint('staff', __name__, template_folder='templates')
 
