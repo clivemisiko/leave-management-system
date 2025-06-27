@@ -1,0 +1,205 @@
+{% extends 'staff/base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="card shadow">
+        <div class="card-header bg-primary text-white">
+            <h3 class="mb-0">
+                <i class="bi bi-pencil-square"></i> Submit Leave Application
+            </h3>
+        </div>
+
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('staff.create_application') }}" id="staffLeaveForm" enctype="application/x-www-form-urlencoded">
+
+
+                    
+               
+                <!-- Leave Details -->
+         
+<div class="mb-4">
+    <h5 class="border-bottom pb-2">Leave Details</h5>
+    <div class="row g-3">
+        <div class="col-md-3">
+            <label class="form-label">Days Requested <span class="text-danger">*</span></label>
+            <input type="number" name="leave_days" class="form-control" id="leaveDays" min="1" required>
+        </div>
+        <div class="col-md-4">
+            <label class="form-label">Start Date <span class="text-danger">*</span></label>
+            <input type="date" name="start_date" class="form-control" id="startDate" required>
+        </div>
+        <div class="col-md-5">
+            <label class="form-label">End Date</label>
+            <input type="date" name="end_date" class="form-control" id="endDate" readonly>
+        </div>
+    
+    </div>
+</div>
+<!-- First Time Applying -->
+<div class="mb-4">
+  <label class="form-label">Is this your first time applying for leave? <span class="text-danger">*</span></label>
+  <div>
+    <input type="radio" name="first_time" value="yes" id="firstTimeYes" required>
+    <label for="firstTimeYes">Yes</label>
+    &nbsp;&nbsp;
+    <input type="radio" name="first_time" value="no" id="firstTimeNo" required>
+    <label for="firstTimeNo">No</label>
+  </div>
+</div>
+
+<!-- Last Leave Dates (hidden unless "No" is selected) -->
+<div id="lastLeaveDates" class="mb-4" style="display: none;">
+  <h5 class="border-bottom pb-2">Previous Leave Information</h5>
+  <div class="row g-3">
+    <div class="col-md-6">
+      <label class="form-label">Last Leave Start Date</label>
+      <input type="date" name="last_leave_start" class="form-control">
+    </div>
+    <div class="col-md-6">
+      <label class="form-label">Last Leave End Date</label>
+      <input type="date" name="last_leave_end" class="form-control">
+    </div>
+  </div>
+</div>
+
+
+                <!-- Contact Info -->
+                <div class="mb-4">
+                    <h5 class="border-bottom pb-2">Contact During Leave</h5>
+                    <div class="row g-3">
+                        <div class="col-md-8">
+                            <label class="form-label">Physical Address <span class="text-danger">*</span></label>
+                            <textarea name="contact_address" class="form-control" rows="2" required></textarea>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Emergency Contact <span class="text-danger">*</span></label>
+                            <input type="tel" name="contact_tel" class="form-control" required>
+                        </div>
+                    </div>
+                </div>
+                <!-- Leave Type -->
+<div class="mb-3">
+  <label class="form-label">Leave Type</label>
+  <select name="leave_type" class="form-select" required>
+    <option value="" disabled selected>Select type</option>
+    <option value="Annual">Annual</option>
+    <option value="Sick">Sick</option>
+    <option value="Maternity">Maternity</option>
+    <option value="Paternity">Paternity</option>
+    <option value="Study">Study</option>
+    <option value="Unpaid">Unpaid</option>
+  </select>
+</div>
+<div class="mb-3">
+  <label class="form-label">Designation <span class="text-danger">*</span></label>
+  <select name="designation" class="form-select" required>
+    <option value="" disabled selected>Select designation</option>
+    <option value="Head of Department">Head of Department</option>
+    <option value="Staff Member">Staff Member</option>
+  
+    <!-- Add more as needed -->
+  </select>
+</div>
+
+
+
+<div class="form-group">
+    <label>Do you want salary to continue through the bank?</label><br>
+    <input type="radio" name="salary_option" value="continue" checked> Yes
+    <input type="radio" name="salary_option" value="alternate"> No
+</div>
+
+<div class="form-group" id="salary-address-group" style="display: none;">
+    <label for="salary_address">Alternate Payment Address (if No above)</label>
+    <input type="text" name="salary_address" id="salary_address" class="form-control">
+</div>
+
+<!-- Delegated Worker -->
+<div class="mb-3">
+  <label class="form-label">Delegated Worker</label>
+  <input type="text" name="delegate" class="form-control" placeholder="Enter full name of person covering your duties">
+</div>
+
+                <!-- Form Buttons -->
+                <div class="d-flex justify-content-between mt-4">
+                    <button type="button" class="btn btn-outline-secondary" onclick="history.back()">
+                        <i class="bi bi-arrow-left"></i> Cancel
+                    </button>
+                    <div>
+                        <button type="reset" class="btn btn-warning me-2">
+                            <i class="bi bi-eraser"></i> Reset
+                        </button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-circle"></i> Submit
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+
+<script>
+    // Show/hide salary address field based on radio button
+    const radios = document.querySelectorAll('input[name="salary_option"]');
+    const addressGroup = document.getElementById('salary-address-group');
+    
+    radios.forEach(r => r.addEventListener('change', () => {
+        if (document.querySelector('input[name="salary_option"]:checked').value === 'alternate') {
+            addressGroup.style.display = 'block';
+        } else {
+            addressGroup.style.display = 'none';
+        }
+    }));
+</script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const startDate = document.getElementById('startDate');
+    const leaveDays = document.getElementById('leaveDays');
+    const endDate = document.getElementById('endDate');
+
+    function updateEndDate() {
+        const start = new Date(startDate.value);
+        const days = parseInt(leaveDays.value);
+        if (!isNaN(start.getTime()) && days > 0) {
+            const calculatedEnd = new Date(start);
+            calculatedEnd.setDate(calculatedEnd.getDate() + days - 1);
+            endDate.value = calculatedEnd.toISOString().split('T')[0];
+        } else {
+            endDate.value = '';
+        }
+    }
+
+    startDate.addEventListener('change', updateEndDate);
+    leaveDays.addEventListener('input', updateEndDate);
+});
+</script>
+
+<style>
+    .form-label {
+        font-weight: 500;
+    }
+    #endDate {
+        background-color: #f8f9fa;
+    }
+</style>
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const firstTimeRadios = document.getElementsByName("first_time");
+    const lastLeaveSection = document.getElementById("lastLeaveDates");
+
+    firstTimeRadios.forEach(radio => {
+        radio.addEventListener("change", () => {
+            if (document.getElementById("firstTimeNo").checked) {
+                lastLeaveSection.style.display = "block";
+            } else {
+                lastLeaveSection.style.display = "none";
+            }
+        });
+    });
+});
+</script>
+
+{% endblock %}

@@ -1,0 +1,335 @@
+{% extends 'staff/base.html' %}
+
+{% block content %}
+<style>
+    :root {
+        --micde-blue: #0056b3;  /* Primary blue from MICDE */
+        --micde-dark-blue: #003d7a;
+        --micde-light-blue: #e6f0ff;
+        --micde-green: #28a745;  /* Complementary green */
+        --micde-gold: #ffc107;   /* Accent color */
+    }
+    
+    .dashboard-header {
+        border-bottom: 3px solid var(--micde-blue);
+        padding-bottom: 15px;
+        margin-bottom: 25px;
+    }
+    
+    .micde-card {
+        border: none;
+        background-color: var(--micde-light-blue);
+        border-radius: var(--micde-border-radius);
+        box-shadow: var(--micde-box-shadow);
+        transition: all 0.3s ease;
+        border-top: 4px solid var(--micde-blue);
+        margin-bottom: 25px;
+    }
+    
+    .micde-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+    }
+    
+    .micde-card-header {
+        background-color: var(--micde-blue);
+        color: white;
+        font-weight: 600;
+        border-bottom: none;
+    }
+    
+    .stat-card {
+        border-left: 4px solid var(--micde-blue);
+    }
+    
+    .stat-card.approved {
+        border-left-color: var(--micde-green);
+    }
+    
+    .stat-card.pending {
+        border-left-color: var(--micde-gold);
+    }
+    
+    .stat-card.rejected {
+        border-left-color: #dc3545;
+    }
+    
+    .btn-micde {
+        background-color: var(--micde-blue);
+        border-color: var(--micde-blue);
+        color: white;
+    }
+    
+    .btn-micde:hover {
+        background-color: var(--micde-dark-blue);
+        border-color: var(--micde-dark-blue);
+        color: white;
+    }
+    
+    .status-badge {
+        padding: 5px 10px;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: 500;
+    }
+    
+    .empty-state {
+        background-color: var(--micde-light-blue);
+        border-radius: 8px;
+    }
+    
+    .ministry-header {
+        background-color: var(--micde-blue);
+        color: white;
+        padding: 15px 0;
+        margin-bottom: 25px;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    }
+    
+    .ministry-title {
+        color: var(--micde-blue);
+        font-weight: 700;
+        font-size: 1.5rem;
+        line-height: 1.2;
+    }
+    
+    .staff-info {
+        background-color: var(--micde-light-blue);
+        border-radius: 8px;
+        padding: 15px;
+    }
+</style>
+
+<div class="container-fluid px-4">
+        <!-- Staff Info Header -->
+    <div class="staff-info mb-4">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h3 class="mb-1">Welcome, {{ session.staff_name }}</h3>
+                <div class="text-muted">
+                    <span class="me-3">P/No: {{ session.staff_pno }}</span>
+                    <span>Leave Balance: <strong>{{ leave_balance }}</strong> days</span>
+                </div>
+            </div>
+            <div>
+                <a href="{{ url_for('staff.create_application') }}" class="btn btn-micde">
+                    <i class="fas fa-plus-circle me-1"></i> Apply for Leave
+                </a>
+                
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div aria-live="polite" aria-atomic="true" class="position-relative">
+        <div class="toast-container position-fixed top-0 end-0 p-3">
+            <!-- Print restriction toast -->
+            <div id="approvalToast" class="toast align-items-center text-white bg-warning border-0" role="alert">
+                <div class="d-flex">
+                    <div class="toast-body">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        You can only print approved leave applications
+                    </div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                </div>
+            </div>
+
+            <!-- Flash messages -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="toast align-items-center text-white bg-{% if category == 'error' %}danger{% else %}{{ category }}{% endif %} border-0" role="alert">
+                            <div class="d-flex">
+                                <div class="toast-body">
+                                    <i class="fas fa-{% if category == 'error' %}exclamation-triangle{% else %}check-circle{% endif %} me-2"></i>
+                                    {{ message }}
+                                </div>
+                                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                            </div>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+        </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="row mb-4">
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card stat-card h-100">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                                Total Applications</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ total }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-file-alt fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card stat-card approved h-100">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                                Approved</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ approved }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-check-circle fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card stat-card pending h-100">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                                Pending</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ pending }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-hourglass-half fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card stat-card rejected h-100">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">
+                                Rejected</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ rejected }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-times-circle fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Applications Table -->
+    <div class="card micde-card">
+        <div class="card-header micde-card-header">
+            <h5 class="mb-0"><i class="fas fa-clipboard-list me-2"></i>My Leave Applications</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Leave Days</th>
+                            <th>Period</th>
+                            <th>Status</th>
+                            <th>Applied On</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for app in applications %}
+                        <tr>
+                            <td>{{ loop.index }}</td>
+                            <td>{{ app.leave_days or 0 }} day(s)</td>
+                            <td>
+                                {% if app.start_date and app.end_date %}
+                                    {{ app.start_date.strftime('%b %d, %Y') }} to {{ app.end_date.strftime('%b %d, %Y') }}<br>
+                                    <small class="text-muted">{{ (app.end_date - app.start_date).days + 1 }} total days</small>
+                                {% else %}
+                                    <span class="text-danger">Invalid leave dates</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="status-badge bg-{% if app.status == 'approved' %}success{% elif app.status == 'rejected' %}danger{% else %}warning{% endif %}">
+                                    <i class="fas fa-{% if app.status == 'approved' %}check-circle{% elif app.status == 'rejected' %}times-circle{% else %}hourglass-half{% endif %} me-1"></i>
+                                    {{ app.status|upper }}
+                                </span>
+                                {% if app.status == 'approved' %}
+                                <small class="d-block text-muted mt-1">
+                                    Approved by {{ app.approved_by }}<br>
+                                    {{ app.approved_at.strftime('%b %d, %Y %I:%M %p') if app.approved_at }}
+                                </small>
+                                {% elif app.status == 'rejected' %}
+                                <small class="d-block text-muted mt-1">
+                                    Rejected by {{ app.rejected_by }}<br>
+                                    {{ app.rejected_at.strftime('%b %d, %Y %I:%M %p') if app.rejected_at }}
+                                </small>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if app.submitted_at %}
+                                    {{ app.submitted_at.strftime('%b %d, %Y %I:%M %p') }}
+                                {% else %}
+                                    <span class="text-muted">N/A</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if app.status == 'approved' %}
+                                    <a href="{{ url_for('staff.download_application_pdf', app_id=app.id) }}"
+                                       class="btn btn-sm btn-outline-success"
+                                       data-bs-toggle="tooltip" title="Download approved application">
+                                        <i class="fas fa-print"></i> Print
+                                    </a>
+                                {% else %}
+                                    <button type="button" class="btn btn-sm btn-outline-secondary show-toast"
+                                            data-bs-toggle="tooltip" title="Wait for admin approval before printing">
+                                        <i class="fas fa-print"></i> Print
+                                    </button>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="6" class="text-center py-5 empty-state">
+                                <i class="fas fa-calendar-times" style="font-size: 2rem;"></i>
+                                <p class="mt-2">No leave applications found</p>
+                                
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize all toasts
+    const toasts = document.querySelectorAll('.toast');
+    toasts.forEach(toastEl => new bootstrap.Toast(toastEl, { animation: true, autohide: true, delay: 5000 }).show());
+
+    // Initialize tooltips
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    const tooltipList = tooltipTriggerList.map(function(tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+
+    // Print restriction toast
+    document.querySelectorAll('.show-toast').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const toast = new bootstrap.Toast(document.getElementById('approvalToast'), { delay: 4000 });
+            toast.show();
+        });
+    });
+});
+</script>
+{% endblock %}

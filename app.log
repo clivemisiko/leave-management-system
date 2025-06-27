@@ -49,3 +49,5 @@ jinja2.exceptions.TemplateNotFound: staff/reset_password.html
 2025-06-23 08:42:38,635 ERROR: Token validation failed: staff/reset_password.html [in c:\Users\ADMIN\leave_app_system\backend\app\staff\routes.py:342]
 2025-06-23 08:48:04,756 ERROR: Token validation failed: staff/reset_password.html [in c:\Users\ADMIN\leave_app_system\backend\app\staff\routes.py:342]
 2025-06-23 17:29:44,339 ERROR: Error sending reset email: [Errno 11001] getaddrinfo failed [in c:\Users\ADMIN\leave_app_system\backend\app\staff\routes.py:285]
+2025-06-27 20:37:54,934 ERROR: Registration error: (1146, "Table 'railway.staff' doesn't exist") [in c:\Users\ADMIN\leave_app_system\backend\app\staff\routes.py:170]
+2025-06-27 20:38:13,442 ERROR: Login error: (1146, "Table 'railway.staff' doesn't exist") [in c:\Users\ADMIN\leave_app_system\backend\app\staff\routes.py:214]

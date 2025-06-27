@@ -1,9 +1,10 @@
 # app/extensions.py
 
-from flask_mysqldb import MySQL
-#from flask_wtf.csrf import CSRFProtect
+import pymysql
+pymysql.install_as_MySQLdb()  # Must come before importing MySQL
+
 from flask_mail import Mail
+from flask_mysqldb import MySQL
 
 mail = Mail()
 mysql = MySQL()
-#csrf = CSRFProtect()

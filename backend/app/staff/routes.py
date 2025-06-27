@@ -507,7 +507,7 @@ def download_application_pdf(app_id):
     app['leave_balance'] = staff_info['leave_balance'] if staff_info else 'N/A'
 
     # ✅ Select appropriate template (adjust if you use user_type or separate paths)
-    template_name = 'admin/pdf_template_staff.html' if app.get('user_type') == 'Staff' else 'staff/pdf_template_hod.html'
+    template_name = 'admin/pdf_template_staff.html' if app.get('user_type') == 'Staff' else 'pdf_template_hod.html'
     
     # ✅ Render PDF HTML
     rendered = render_template(template_name, app=app)

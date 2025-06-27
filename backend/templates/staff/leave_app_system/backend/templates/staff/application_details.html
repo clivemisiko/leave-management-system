@@ -1,0 +1,23 @@
+<div class="row">
+  <div class="col-md-6">
+    <p><strong>Application ID:</strong> {{ application[0] }}</p>
+    <p><strong>Status:</strong> 
+      <span class="badge bg-{% if application[7] == 'approved' %}success
+                         {% elif application[7] == 'rejected' %}danger
+                         {% else %}warning{% endif %}">
+        {{ application[7]|upper }}
+      </span>
+    </p>
+    <p><strong>Leave Days:</strong> {{ application[4] }}</p>
+    <p><strong>Start Date:</strong> {{ application[5]|format_date }}</p>
+    <p><strong>End Date:</strong> {{ application[6]|format_date }}</p>
+  </div>
+  <div class="col-md-6">
+    <p><strong>Contact Address:</strong> {{ application[8] }}</p>
+    <p><strong>Contact Phone:</strong> {{ application[9] }}</p>
+    <p><strong>Submitted At:</strong> {{ application[12]|format_datetime }}</p>
+    {% if application[11] %}
+    <p><strong>Remarks:</strong> {{ application[11] }}</p>
+    {% endif %}
+  </div>
+</div>

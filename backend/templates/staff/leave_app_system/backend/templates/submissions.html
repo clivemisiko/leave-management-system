@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Submitted Leave Applications</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+<div class="container mt-5">
+    <h2 class="mb-4">Submitted Leave Applications</h2>
+
+    <div class="mb-3">
+        <a href="/" class="btn btn-success">← Back to Leave Form</a>
+    </div>
+
+    {% if submissions %}
+    <div class="table-responsive">
+        <table class="table table-bordered table-hover table-sm align-middle">
+            <thead class="table-dark">
+                <tr>
+                    <th>ID</th>
+                    <th>Name</th>
+                    <th>P/No</th>
+                    <th>Designation</th>
+                    <th>Days</th>
+                    <th>Start</th>
+                    <th>End</th>
+                    <th>Last Start</th>
+                    <th>Last End</th>
+                    <th>Address</th>
+                    <th>Tel</th>
+                    <th>Salary Opt.</th>
+                    <th>Salary Addr</th>
+                    <th>Delegate</th>
+                    <th>Submitted</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in submissions %}
+                <tr>
+                    <td>{{ row.id }}</td>
+                    <td>{{ row.name }}</td>
+                    <td>{{ row.pno }}</td>
+                    <td>{{ row.designation }}</td>
+                    <td>{{ row.leave_days }}</td>
+                    <td>{{ row.start_date }}</td>
+                    <td>{{ row.end_date }}</td>
+                    <td>{{ row.last_leave_start }}</td>
+                    <td>{{ row.last_leave_end }}</td>
+                    <td>{{ row.contact_address }}</td>
+                    <td>{{ row.contact_tel }}</td>
+                    <td>{{ row.salary_option }}</td>
+                    <td>{{ row.salary_address }}</td>
+                    <td>{{ row.delegate }}</td>
+                    <td>{{ row.submitted_at }}</td>
+                    <td>
+                        <a href="/download/{{ row.id }}" class="btn btn-sm btn-outline-primary">PDF</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+        <p>No submissions yet.</p>
+    {% endif %}
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
