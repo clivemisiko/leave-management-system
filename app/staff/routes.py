@@ -521,8 +521,11 @@ def create_staff_application():
 @staff_bp.route('/application/download/<int:app_id>')
 @staff_required
 def download_application_pdf(app_id):
+    from flask import request, url_for
+
     cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
+    # Fetch leave application
     cur.execute("""
         SELECT * FROM leave_applications WHERE id = %s AND staff_id = %s
     """, (app_id, session['staff_id']))
@@ -536,28 +539,35 @@ def download_application_pdf(app_id):
         flash("You can only print approved leave applications.", "warning")
         return redirect(url_for('staff.staff_dashboard'))
 
+    # Fetch leave balance
     cur.execute("SELECT leave_balance FROM staff WHERE id = %s", (session['staff_id'],))
     staff_info = cur.fetchone()
     cur.close()
 
     app['leave_balance'] = staff_info['leave_balance'] if staff_info else 'N/A'
 
+    # Choose template
     template_name = 'admin/pdf_template_staff.html' if app.get('user_type') == 'Staff' else 'pdf_template_hod.html'
 
+    # Generate full logo URL for remote access (WeasyPrint)
+    full_logo_url = request.host_url.rstrip('/') + url_for('static', filename='images/kenya_logo.png')
+
+    # Render HTML for PDF
     rendered = render_template(
         template_name,
         app=app,
-        logo_url=get_logo_base64()  # ✅ Use 'logo_url' to match your template
+        full_logo_url=full_logo_url  # Passed to <img src="{{ full_logo_url }}">
     )
 
-    from flask import current_app
+    # Generate PDF with external asset access
+    pdf = HTML(string=rendered, base_url=request.host_url).write_pdf()
 
-    pdf = HTML(string=rendered, base_url=current_app.root_path).write_pdf()
-
+    # Serve the PDF
     response = make_response(pdf)
     response.headers['Content-Type'] = 'application/pdf'
     response.headers['Content-Disposition'] = f'inline; filename=leave_application_{app_id}.pdf'
     return response
+
 
 @staff_bp.route('/test-logo')
 def test_logo():
