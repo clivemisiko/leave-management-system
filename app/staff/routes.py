@@ -27,10 +27,15 @@ import base64
 import os
 
 def get_logo_base64():
-    logo_path = os.path.join(current_app.root_path, 'static', 'images', 'gov_logo.png')  # Adjust path if different
+    logo_path = os.path.join(current_app.root_path, 'static', 'images', 'gov_logo.png')
+    if not os.path.exists(logo_path):
+        return ''  # Avoid sending broken img
+
     with open(logo_path, 'rb') as f:
         encoded = base64.b64encode(f.read()).decode('utf-8')
+    
     return f"data:image/png;base64,{encoded}"
+
 
 
 import re  # Add this with your other imports at the top
@@ -540,6 +545,16 @@ def download_application_pdf(app_id):
     response.headers['Content-Type'] = 'application/pdf'
     response.headers['Content-Disposition'] = f'inline; filename=leave_application_{app_id}.pdf'
     return response
+
+@staff_bp.route('/test-logo')
+def test_logo():
+    return f'''
+    <div style="text-align:center;">
+        <h2>Base64 Logo Preview</h2>
+        <img src="{get_logo_base64()}" alt="Logo" style="height:100px;">
+    </div>
+    '''
+
 
 
 

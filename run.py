@@ -31,3 +31,4 @@ if __name__ == '__main__':
 
     for rule in app.url_map.iter_rules():
         print(f"{rule} --> {rule.endpoint}")
+
