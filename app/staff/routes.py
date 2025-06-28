@@ -27,10 +27,10 @@ import base64
 import os
 
 def get_logo_base64():
-    logo_path = os.path.join(current_app.root_path, 'static', 'images', 'gov_logo.png')  # Adjust path if needed
-    with open(logo_path, 'rb') as logo_file:
-        encoded_logo = base64.b64encode(logo_file.read()).decode('utf-8')
-    return f"data:image/png;base64,{encoded_logo}"
+    logo_path = os.path.join(current_app.root_path, 'static', 'images', 'gov_logo.png')  # Adjust path if different
+    with open(logo_path, 'rb') as f:
+        encoded = base64.b64encode(f.read()).decode('utf-8')
+    return f"data:image/png;base64,{encoded}"
 
 
 import re  # Add this with your other imports at the top
@@ -528,8 +528,11 @@ def download_application_pdf(app_id):
 
     template_name = 'admin/pdf_template_staff.html' if app.get('user_type') == 'Staff' else 'pdf_template_hod.html'
 
-    logo = get_logo_base64()
-    rendered = render_template(template_name, app=app, logo=logo)
+    rendered = render_template(
+        template_name,
+        app=app,
+        logo_url=get_logo_base64()  # ✅ Use 'logo_url' to match your template
+    )
 
     pdf = HTML(string=rendered, base_url=request.root_url).write_pdf()
 

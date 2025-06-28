@@ -11,10 +11,10 @@ import base64
 import os
 
 def get_logo_base64():
-    logo_path = os.path.join(current_app.root_path, 'static', 'images', 'gov_logo.png')  # Adjust path if needed
-    with open(logo_path, 'rb') as logo_file:
-        encoded_logo = base64.b64encode(logo_file.read()).decode('utf-8')
-    return f"data:image/png;base64,{encoded_logo}"
+    logo_path = os.path.join(current_app.root_path, 'static', 'images', 'gov_logo.png')  # Adjust path if different
+    with open(logo_path, 'rb') as f:
+        encoded = base64.b64encode(f.read()).decode('utf-8')
+    return f"data:image/png;base64,{encoded}"
 
 admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
 
@@ -411,8 +411,11 @@ def print_application(id):
 
     template = 'admin/pdf_template_hod.html' if application['is_hod'] else 'admin/pdf_template_staff.html'
 
-    logo = get_logo_base64()
-    rendered = render_template(template, app=application, logo=logo)
+    rendered = render_template(
+        template,
+        app=application,
+        logo_url=get_logo_base64()  # ✅ Consistent with your template
+    )
 
     pdf = HTML(string=rendered, base_url=request.root_url).write_pdf(
         stylesheets=[CSS(string='@page { margin: 2cm; }')]
@@ -422,5 +425,6 @@ def print_application(id):
     response.headers['Content-Type'] = 'application/pdf'
     response.headers['Content-Disposition'] = f'inline; filename=leave_application_{id}.pdf'
     return response
+
 
 
