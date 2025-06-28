@@ -27,14 +27,25 @@ import base64
 import os
 
 def get_logo_base64():
-    logo_path = os.path.join(current_app.root_path, 'static', 'images', 'gov_logo.png')
-    if not os.path.exists(logo_path):
-        return ''  # Avoid sending broken img
+    from flask import current_app
+    import base64, os
 
-    with open(logo_path, 'rb') as f:
-        encoded = base64.b64encode(f.read()).decode('utf-8')
-    
-    return f"data:image/png;base64,{encoded}"
+    # ✅ Absolute path to logo file
+    logo_path = os.path.join(current_app.root_path, 'static', 'images', 'gov_logo.png')
+
+    if not os.path.exists(logo_path):
+        print("❌ LOGO FILE NOT FOUND:", logo_path)
+        return ""
+
+    try:
+        with open(logo_path, 'rb') as logo_file:
+            encoded = base64.b64encode(logo_file.read()).decode('utf-8')
+        print("✅ LOGO ENCODED SUCCESSFULLY")
+        return f"data:image/png;base64,{encoded}"
+    except Exception as e:
+        print("❌ ERROR READING LOGO FILE:", e)
+        return ""
+
 
 
 
@@ -554,9 +565,6 @@ def test_logo():
         <img src="{get_logo_base64()}" alt="Logo" style="height:100px;">
     </div>
     '''
-
-
-
 
 @staff_bp.route('/logout')
 def staff_logout():
