@@ -524,11 +524,22 @@ def download_application_pdf(app_id):
     template_name = 'admin/pdf_template_staff.html' if app.get('user_type') == 'Staff' else 'pdf_template_hod.html'
 
     # ✅ Base64 encode the logo
-    logo_path = os.path.join(current_app.root_path, 'static/images/kenya_logo.png')
-    with open(logo_path, "rb") as image_file:
-        encoded_logo = base64.b64encode(image_file.read()).decode('utf-8')
-    logo_url = f"data:image/png;base64,{encoded_logo}"
+    # Option 1: Recommended Approach (using Flask's static filesystem)
+    logo_path = os.path.join(current_app.static_folder, 'images', 'kenya_logo.png')
 
+    try:
+        if os.path.exists(logo_path):
+            with open(logo_path, "rb") as image_file:
+                encoded_logo = base64.b64encode(image_file.read()).decode('utf-8')
+            logo_url = f"data:image/png;base64,{encoded_logo}"
+        else:
+            # Fallback to URL-based approach if file not found
+            logo_url = url_for('static', filename='images/kenya_logo.png', _external=True)
+            current_app.logger.warning(f"Logo not found at {logo_path}, using URL fallback: {logo_url}")
+    except Exception as e:
+        current_app.logger.error(f"Error loading logo: {str(e)}")
+        # Ultimate fallback - use a placeholder or empty string
+        logo_url = ""  # or a placeholder image URL
     rendered = render_template(template_name, app=app, logo_url=logo_url)
     pdf = HTML(string=rendered, base_url=request.root_url).write_pdf()
 
@@ -536,8 +547,6 @@ def download_application_pdf(app_id):
     response.headers['Content-Type'] = 'application/pdf'
     response.headers['Content-Disposition'] = f'inline; filename=leave_application_{app_id}.pdf'
     return response
-
-
 
 
 @staff_bp.route('/logout')
