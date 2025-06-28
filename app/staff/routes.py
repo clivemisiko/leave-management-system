@@ -550,7 +550,9 @@ def download_application_pdf(app_id):
         logo_url=get_logo_base64()  # ✅ Use 'logo_url' to match your template
     )
 
-    pdf = HTML(string=rendered, base_url=request.root_url).write_pdf()
+    from flask import current_app
+
+    pdf = HTML(string=rendered, base_url=current_app.root_path).write_pdf()
 
     response = make_response(pdf)
     response.headers['Content-Type'] = 'application/pdf'
