@@ -52,8 +52,11 @@ def get_logo_base64():
 import re  # Add this with your other imports at the top
 from email_validator import validate_email, EmailNotValidError
 
-staff_bp = Blueprint('staff', __name__, template_folder='templates')
-
+staff_bp = Blueprint(
+    'staff',
+    __name__,
+    template_folder='templates'  # Looks in app/staff/templates
+)
 # In your routes.py - must use same salt and secret key
 def get_serializer():
     return URLSafeTimedSerializer(

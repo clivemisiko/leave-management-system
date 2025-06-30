@@ -16,8 +16,11 @@ def get_logo_base64():
         encoded = base64.b64encode(f.read()).decode('utf-8')
     return f"data:image/png;base64,{encoded}"
 
-admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
-
+admin_bp = Blueprint(
+    'admin', 
+    __name__,
+    template_folder='templates'  # Looks in app/admin/templates
+)
 # Your routes will follow here...
 
 def admin_required(f):
