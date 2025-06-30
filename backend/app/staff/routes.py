@@ -547,8 +547,7 @@ def download_application_pdf(app_id):
                     template_data['app'][field] = None
 
         # 4. Render and generate PDF
-        template_path = 'admin/pdf_template_hod.html' if application['is_hod'] else 'admin/pdf_template_staff.html'
-        
+        template_path = 'admin/pdf_template_hod.html'      
         # Verify template exists
         if not os.path.exists(os.path.join(current_app.template_folder, template_path)):
             current_app.logger.error(f"Template not found: {template_path}")
