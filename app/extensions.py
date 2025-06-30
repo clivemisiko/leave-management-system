@@ -1,8 +1,10 @@
-import pymysql
-pymysql.install_as_MySQLdb()  # Do this first before importing MySQL
+# app/extensions.py
 
-from flask_mysqldb import MySQL
-mysql = MySQL()
+import pymysql
+pymysql.install_as_MySQLdb()  # Must come before importing MySQL
 
 from flask_mail import Mail
+from flask_mysqldb import MySQL
+
 mail = Mail()
+mysql = MySQL()

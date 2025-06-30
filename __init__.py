@@ -2,19 +2,17 @@ import os
 from datetime import datetime
 from flask import Flask
 from flask_mail import Mail
-from .extensions import mysql, mail
+from .app.extensions import mysql, mail
 from .config import Config
 
 def create_app():
-    # Configure absolute paths
-    base_dir = os.path.abspath(os.path.dirname(__file__))
-    template_path = os.path.join(base_dir, 'templates')
-    static_path = os.path.join(base_dir, 'static')
+    # Get absolute path to the app directory
+    app_dir = os.path.dirname(os.path.abspath(__file__))
     
     app = Flask(
         __name__,
-        template_folder=template_path,
-        static_folder=static_path
+        template_folder=os.path.join(app_dir, 'templates'),  # Absolute path
+        static_folder=os.path.join(app_dir, 'static')
     )
 
     # Load configuration

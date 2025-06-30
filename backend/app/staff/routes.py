@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, current_app, flash, session
 from werkzeug.security import check_password_hash, generate_password_hash
-from ..extensions import mysql, mail
+from app.extensions import mysql, mail
 from itsdangerous import URLSafeTimedSerializer
 from ..utils.email import send_reset_email
 from ..utils.auth import update_password
