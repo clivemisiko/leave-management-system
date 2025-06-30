@@ -13,46 +13,35 @@ import MySQLdb.cursors
 from email_validator import validate_email, EmailNotValidError
 import os
 import base64
-from datetime import datetime
+import logging
 from flask import (
-    Blueprint, 
-    render_template, 
-    redirect, 
-    url_for, 
-    flash, 
-    session, 
-    make_response,
+    Blueprint, render_template, redirect, 
+    url_for, flash, session, make_response,
     current_app
 )
-from flask_mysqldb import MySQL
 from weasyprint import HTML, CSS
-from functools import wraps
+from weasyprint.text.fonts import FontConfiguration
 
-# Initialize MySQL connection
-mysql = MySQL()
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 def get_logo_base64():
-    """Get base64 encoded logo image"""
-    try:
-        # Try multiple possible locations
-        possible_paths = [
-            os.path.join(current_app.root_path, 'static', 'images', 'gov_logo.png'),
-            os.path.join(current_app.root_path, 'app', 'static', 'images', 'gov_logo.png'),
-            os.path.join(current_app.root_path, 'backend', 'static', 'images', 'gov_logo.png')
-        ]
-        
-        for logo_path in possible_paths:
-            if os.path.exists(logo_path):
-                with open(logo_path, 'rb') as f:
-                    encoded = base64.b64encode(f.read()).decode('utf-8')
-                return f"data:image/png;base64,{encoded}"
-        
-        current_app.logger.error(f"Logo not found at any of: {possible_paths}")
-        return ""
-        
-    except Exception as e:
-        current_app.logger.error(f"Logo loading error: {str(e)}")
-        return ""
+    """Robust logo loading with multiple fallback paths"""
+    logo_paths = [
+        os.path.join(current_app.root_path, 'static', 'images', 'gov_logo.png'),
+        os.path.join(current_app.static_folder, 'images', 'gov_logo.png'),
+        os.path.join('app', 'static', 'images', 'gov_logo.png')
+    ]
+    
+    for path in logo_paths:
+        try:
+            if os.path.exists(path):
+                with open(path, 'rb') as f:
+                    return f"data:image/png;base64,{base64.b64encode(f.read()).decode('utf-8')}"
+        except Exception as e:
+            logger.warning(f"Failed to load logo from {path}: {str(e)}")
+    return ""
 
 staff_bp = Blueprint('staff', __name__, template_folder='templates')
 
@@ -524,62 +513,57 @@ def create_staff_application():
 @staff_required
 def download_application_pdf(app_id):
     try:
-        # Verify application exists and belongs to staff
-        cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-        cur.execute("""
-            SELECT * FROM leave_applications 
-            WHERE id = %s AND staff_id = %s
-        """, (app_id, session['staff_id']))
-        app = cur.fetchone()
+        # 1. Fetch application data
+        with current_app.mysql.connection.cursor() as cur:
+            cur.execute("""
+                SELECT la.*, s.leave_balance 
+                FROM leave_applications la
+                JOIN staff s ON la.staff_id = s.id
+                WHERE la.id = %s AND la.staff_id = %s
+            """, (app_id, session['staff_id']))
+            app = cur.fetchone()
+            
+            if not app:
+                flash("Application not found", "danger")
+                return redirect(url_for('staff.staff_dashboard'))
+
+            if app['status'] != 'approved':
+                flash("Only approved applications can be printed", "warning")
+                return redirect(url_for('staff.staff_dashboard'))
+
+        # 2. Prepare template context
+        context = {
+            'app': app,
+            'logo_data': get_logo_base64(),
+            'static_url': current_app.static_url_path
+        }
+
+        # 3. Generate PDF with enhanced configuration
+        font_config = FontConfiguration()
+        html = HTML(
+            string=render_template('staff/pdf_template.html', **context),
+            base_url=os.path.join(current_app.root_path, 'static')
+        )
         
-        if not app:
-            flash("Application not found or unauthorized", "danger")
-            return redirect(url_for('staff.staff_dashboard'))
-
-        if app['status'] != 'approved':
-            flash("You can only print approved leave applications", "warning")
-            return redirect(url_for('staff.staff_dashboard'))
-
-        # Get staff leave balance
-        cur.execute("SELECT leave_balance FROM staff WHERE id = %s", (session['staff_id'],))
-        staff_info = cur.fetchone()
-        cur.close()
-
-        app['leave_balance'] = staff_info['leave_balance'] if staff_info else 'N/A'
-
-        # Get logo data
-        logo_data = get_logo_base64()
-        if not logo_data:
-            current_app.logger.warning("Logo file not found")
-
-        # Render template
-        rendered = render_template(
-            'staff/pdf_template.html',
-            app=app,
-            logo_data=logo_data
+        pdf = html.write_pdf(
+            stylesheets=[CSS(string='''
+                @page { margin: 2cm; size: A4; }
+                body { font-family: "Times New Roman", serif; }
+            ''')],
+            font_config=font_config
         )
 
-        # Generate PDF
-        pdf = HTML(
-            string=rendered,
-            base_url=os.path.join(current_app.root_path, 'static')
-        ).write_pdf()
-
+        # 4. Return response
         response = make_response(pdf)
         response.headers['Content-Type'] = 'application/pdf'
-        response.headers['Content-Disposition'] = f'inline; filename=leave_application_{app_id}.pdf'
+        response.headers['Content-Disposition'] = f'attachment; filename=leave_application_{app_id}.pdf'
         return response
 
     except Exception as e:
-        current_app.logger.error(f"PDF generation failed: {str(e)}", exc_info=True)
-        flash('Failed to generate PDF document', 'danger')
+        logger.error(f"PDF generation failed: {str(e)}", exc_info=True)
+        flash("PDF generation failed. Please try again or contact support.", "danger")
         return redirect(url_for('staff.staff_dashboard'))
-
-    except Exception as e:
-        current_app.logger.error(f"PDF generation failed: {str(e)}")
-        flash('Failed to generate PDF document', 'danger')
-        return redirect(url_for('staff.staff_dashboard'))
-
+    
 @staff_bp.route('/logout')
 def staff_logout():
     session.clear()

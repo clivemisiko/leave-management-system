@@ -14,6 +14,9 @@
             text-align: center;
             margin-bottom: 15px;
         }
+        @page { margin: 2cm; }
+        body { font-family: "Times New Roman", serif; }
+        .logo { height: 80px; }
         .logo {
             height: 80px;
             margin-bottom: 10px;
@@ -83,8 +86,9 @@
 <body>
 
 <div class="logo-container">
-<img src="static/images/kenya_logo.png" class="logo" alt="Organization Logo" style="height: 80px;">
-</div>
+{% if logo_data %}
+    <img src="{{ logo_data }}" class="logo" alt="Logo">
+    {% endif %}</div>
 
 
     <div class="header">
