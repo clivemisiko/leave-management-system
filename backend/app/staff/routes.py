@@ -547,7 +547,7 @@ def download_application_pdf(app_id):
                     template_data['app'][field] = None
 
         # 4. Render and generate PDF
-        template_path = 'staff/pdf_template.html'
+        template_path = 'admin/pdf_template_hod.html' if application['is_hod'] else 'admin/pdf_template_staff.html'
         
         # Verify template exists
         if not os.path.exists(os.path.join(current_app.template_folder, template_path)):
@@ -622,11 +622,3 @@ def cancel_application(id):
 
     return redirect(url_for('staff.staff_dashboard'))
 
-@staff_bp.route('/debug-logo')
-def debug_logo():
-    logo = get_logo_base64()
-    return f"""
-    <h1>Logo Debug</h1>
-    <p>Logo exists: {bool(logo)}</p>
-    <img src="{logo}" style="height: 100px;">
-    """
