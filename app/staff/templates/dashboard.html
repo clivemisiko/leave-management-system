@@ -282,7 +282,7 @@
                             </td>
                             <td>
                                 {% if app.status == 'approved' %}
-                                    <a href="{{ url_for('staff.download_application_pdf', app_id=app.id) }}"
+                                    <a href="{{ url_for('staff.print_application', app_id=app.id) }}"
                                        class="btn btn-sm btn-outline-success"
                                        data-bs-toggle="tooltip" title="Download approved application">
                                         <i class="fas fa-print"></i> Print
