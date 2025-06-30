@@ -51,14 +51,9 @@ def get_logo_base64():
 
 import re  # Add this with your other imports at the top
 from email_validator import validate_email, EmailNotValidError
-staff_template_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'templates')
 
-staff_bp = Blueprint(
-    'staff',
-    __name__,
-    template_folder=staff_template_dir,  # Points directly to staff/templates
-    url_prefix='/staff'
-)
+staff_bp = Blueprint('staff', __name__, template_folder='templates')
+
 # In your routes.py - must use same salt and secret key
 def get_serializer():
     return URLSafeTimedSerializer(
@@ -260,7 +255,7 @@ def staff_login():
         finally:
             cur.close()
     
-    return render_template('login.html')
+    return render_template('staff/login.html')
 
 
 from flask_mail import Message
@@ -558,10 +553,8 @@ def download_application_pdf(app_id):
     rendered = render_template(template_name, app=app)
 
     # ✅ Use local filesystem path to resolve static file
-    pdf = HTML(
-    string=rendered,
-    base_url=os.path.join(current_app.root_path, 'static')
-).write_pdf()
+    pdf = HTML(string=rendered, base_url=current_app.root_path).write_pdf()
+
     response = make_response(pdf)
     response.headers['Content-Type'] = 'application/pdf'
     response.headers['Content-Disposition'] = f'inline; filename=leave_application_{app_id}.pdf'

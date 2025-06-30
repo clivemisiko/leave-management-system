@@ -15,14 +15,9 @@ def get_logo_base64():
     with open(logo_path, 'rb') as f:
         encoded = base64.b64encode(f.read()).decode('utf-8')
     return f"data:image/png;base64,{encoded}"
-admin_template_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'templates')
 
-admin_bp = Blueprint(
-    'admin',
-    __name__,
-    template_folder=admin_template_dir,  # Points directly to admin/templates
-    url_prefix='/admin'
-)
+admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
+
 # Your routes will follow here...
 
 def admin_required(f):
@@ -63,7 +58,7 @@ def admin_login():
             flash(f'Login error: {str(e)}', 'danger')
             # Consider logging the error: current_app.logger.error(str(e))
 
-    return render_template('login.html')
+    return render_template('admin/login.html')
 
 @admin_bp.route('/logout')
 @admin_required
@@ -423,10 +418,8 @@ def print_application(id):
     rendered = render_template(template, app=application)
 
     # ✅ Use local path for static image resolution
-    pdf = HTML(
-    string=rendered,
-    base_url=os.path.join(current_app.root_path, 'static')
-).write_pdf()
+    pdf = HTML(string=rendered, base_url=current_app.root_path).write_pdf()
+
     response = make_response(pdf)
     response.headers['Content-Type'] = 'application/pdf'
     response.headers['Content-Disposition'] = f'inline; filename=leave_application_{id}.pdf'
