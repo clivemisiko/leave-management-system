@@ -15,11 +15,13 @@ def get_logo_base64():
     with open(logo_path, 'rb') as f:
         encoded = base64.b64encode(f.read()).decode('utf-8')
     return f"data:image/png;base64,{encoded}"
+admin_template_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'templates')
 
 admin_bp = Blueprint(
-    'admin', 
+    'admin',
     __name__,
-    template_folder='templates'  # Looks in app/admin/templates
+    template_folder=admin_template_dir,  # Points directly to admin/templates
+    url_prefix='/admin'
 )
 # Your routes will follow here...
 
@@ -61,7 +63,7 @@ def admin_login():
             flash(f'Login error: {str(e)}', 'danger')
             # Consider logging the error: current_app.logger.error(str(e))
 
-    return render_template('admin/login.html')
+    return render_template('login.html')
 
 @admin_bp.route('/logout')
 @admin_required

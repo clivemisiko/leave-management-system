@@ -1,6 +1,7 @@
 from dotenv import load_dotenv
 load_dotenv()
-
+import os
+from app import create_app
 from flask import redirect, url_for, session
 from app import create_app
 from app.extensions import mysql  # ✅ Add this line
@@ -25,6 +26,13 @@ def db_check():
         return f"✅ Connected to MySQL! Tables: {tables}"
     except Exception as e:
         return f"❌ DB Error: {e}"
+# Verify paths in production
+print("Staff login exists:", os.path.exists(
+    os.path.join(os.path.dirname(__file__), 'app/staff/templates/login.html')
+))
+print("Admin login exists:", os.path.exists(
+    os.path.join(os.path.dirname(__file__), 'app/admin/templates/login.html')
+))
 
 if __name__ == '__main__':
     app.run(debug=True, port=5050)
