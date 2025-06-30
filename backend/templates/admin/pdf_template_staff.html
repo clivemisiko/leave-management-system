@@ -79,8 +79,9 @@
 <body>
 
     <div class="logo-container">
-        <img src="{{ get_logo_base64() }}" class="logo" alt="Organization Logo">
-    </div>
+{% if logo_data %}
+<img src="{{ logo_data }}" class="logo" alt="Organization Logo">
+{% endif %}    </div>
     <div class="header">
         <div class="ministry">Republic of Kenya</div>
         <div class="ministry">Ministry of Information, Communications and the Digital Economy</div>
