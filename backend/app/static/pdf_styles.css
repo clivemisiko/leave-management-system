@@ -1,0 +1,122 @@
+/* Base Styles */
+body {
+    font-family: "Times New Roman", serif;
+    font-size: 12pt;
+    line-height: 1.6;
+    color: #000000;
+}
+
+/* Layout */
+@page {
+    size: A4;
+    margin: 2cm 1.5cm;
+    margin-top: 3cm; /* Extra space for logo */
+}
+
+/* Header & Logo */
+.logo-container {
+    text-align: center;
+    margin-bottom: 1cm;
+}
+
+.logo {
+    height: 80px;
+    max-width: 200px;
+    margin-bottom: 0.5cm;
+}
+
+.header {
+    text-align: center;
+    margin-bottom: 1cm;
+}
+
+.ministry {
+    font-weight: bold;
+    text-transform: uppercase;
+    font-size: 14pt;
+    margin: 0.2cm 0;
+}
+
+.form-title {
+    text-align: center;
+    font-weight: bold;
+    text-decoration: underline;
+    font-size: 14pt;
+    margin: 0.5cm 0;
+}
+
+/* Form Elements */
+.section-title {
+    font-weight: bold;
+    margin: 0.5cm 0 0.2cm 0;
+}
+
+.underline {
+    border-bottom: 1px solid #000;
+    padding: 0 0.5cm;
+    display: inline-block;
+    min-width: 5cm;
+}
+
+.checkbox {
+    margin-right: 0.3cm;
+}
+
+/* Status Indicators */
+.status {
+    font-weight: bold;
+    text-transform: uppercase;
+}
+
+.status.pending {
+    color: #e67e22;
+}
+
+.status.approved {
+    color: #27ae60;
+}
+
+.status.rejected {
+    color: #e74c3c;
+}
+
+/* Signature Sections */
+.signature-line {
+    border-top: 1px solid #000;
+    width: 8cm;
+    margin-top: 1cm;
+}
+
+.approval-box {
+    border: 1px solid #000;
+    padding: 0.5cm;
+    margin: 0.5cm 0;
+    min-height: 2cm;
+}
+
+/* Approval Info */
+.approval-info {
+    margin-top: 0.3cm;
+    font-style: italic;
+    font-size: 11pt;
+}
+
+/* Table-like Alignment */
+.form-row {
+    margin-bottom: 0.3cm;
+}
+
+/* Page Breaks */
+.page-break {
+    page-break-after: always;
+}
+
+/* For multi-page forms */
+.second-page {
+    margin-top: 2cm;
+}
+.badge {
+    font-size: 0.85em;
+    padding: 0.35em 0.65em;
+    font-weight: 500;
+}

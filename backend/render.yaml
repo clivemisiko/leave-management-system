@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: leave-management-app
+    env: python
+    buildCommand: |
+      sudo apt-get update
+      sudo apt-get install -y python3-dev python3-pip python3-cffi python3-brotli libpango-1.0-0 libharfbuzz0b libpangoft2-1.0-0
+      pip install -r requirements.txt
+    startCommand: gunicorn --worker-tmp-dir /dev/shm --workers 2 --threads 4 --timeout 60 "run:app"
+    envVars:
+      - key: FLASK_ENV
+        value: production
+      - key: MYSQL_HOST
+        fromDatabase:
+          name: leave-management-db
+          property: host
+      - key: MYSQL_PASSWORD
+        fromDatabase:
+          name: leave-management-db
+          property: password
+    healthCheckPath: /health

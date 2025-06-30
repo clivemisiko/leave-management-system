@@ -13,34 +13,30 @@ import MySQLdb.cursors
 from email_validator import validate_email, EmailNotValidError
 import os
 import base64
-import logging
-from flask import (
-    Blueprint, render_template, redirect, 
-    url_for, flash, session, make_response,
-    current_app
-)
+import tempfile
+from flask import current_app, make_response
 from weasyprint import HTML, CSS
 from weasyprint.text.fonts import FontConfiguration
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
 
 def get_logo_base64():
-    """Robust logo loading with multiple fallback paths"""
-    logo_paths = [
-        os.path.join(current_app.root_path, 'static', 'images', 'gov_logo.png'),
+    """Robust logo loader with multiple fallback locations"""
+    search_paths = [
         os.path.join(current_app.static_folder, 'images', 'gov_logo.png'),
-        os.path.join('app', 'static', 'images', 'gov_logo.png')
+        os.path.join(current_app.root_path, 'static', 'images', 'gov_logo.png'),
+        os.path.join('app', 'static', 'images', 'gov_logo.png'),
+        os.path.join('backend', 'static', 'images', 'gov_logo.png')
     ]
     
-    for path in logo_paths:
+    for path in search_paths:
         try:
             if os.path.exists(path):
                 with open(path, 'rb') as f:
                     return f"data:image/png;base64,{base64.b64encode(f.read()).decode('utf-8')}"
         except Exception as e:
-            logger.warning(f"Failed to load logo from {path}: {str(e)}")
+            current_app.logger.warning(f"Failed to load logo from {path}: {str(e)}")
+    
+    current_app.logger.error("Logo not found in any standard location")
     return ""
 
 staff_bp = Blueprint('staff', __name__, template_folder='templates')
@@ -513,55 +509,61 @@ def create_staff_application():
 @staff_required
 def download_application_pdf(app_id):
     try:
-        # 1. Fetch application data
+        # 1. Verify application exists and is approved
         with current_app.mysql.connection.cursor() as cur:
             cur.execute("""
                 SELECT la.*, s.leave_balance 
                 FROM leave_applications la
                 JOIN staff s ON la.staff_id = s.id
-                WHERE la.id = %s AND la.staff_id = %s
+                WHERE la.id = %s AND la.staff_id = %s AND la.status = 'approved'
             """, (app_id, session['staff_id']))
             app = cur.fetchone()
             
             if not app:
-                flash("Application not found", "danger")
+                flash("Application not found or not approved", "danger")
                 return redirect(url_for('staff.staff_dashboard'))
 
-            if app['status'] != 'approved':
-                flash("Only approved applications can be printed", "warning")
-                return redirect(url_for('staff.staff_dashboard'))
-
-        # 2. Prepare template context
+        # 2. Prepare context with fallbacks
         context = {
             'app': app,
-            'logo_data': get_logo_base64(),
-            'static_url': current_app.static_url_path
+            'logo_data': get_logo_base64() or '',
+            'today': datetime.now().strftime('%Y-%m-%d')
         }
 
-        # 3. Generate PDF with enhanced configuration
-        font_config = FontConfiguration()
-        html = HTML(
-            string=render_template('staff/pdf_template.html', **context),
-            base_url=os.path.join(current_app.root_path, 'static')
-        )
-        
-        pdf = html.write_pdf(
-            stylesheets=[CSS(string='''
-                @page { margin: 2cm; size: A4; }
-                body { font-family: "Times New Roman", serif; }
-            ''')],
-            font_config=font_config
-        )
+        # 3. Generate PDF with temporary file fallback
+        try:
+            font_config = FontConfiguration()
+            html = HTML(
+                string=render_template('staff/pdf_template.html', **context),
+                base_url=os.path.dirname(current_app.static_folder)
+            )
+            
+            # Generate to temporary file first
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp:
+                html.write_pdf(
+                    target=tmp.name,
+                    stylesheets=[CSS(string='@page { size: A4; margin: 2cm; }')],
+                    font_config=font_config
+                )
+                
+                # Read back the temporary file
+                with open(tmp.name, 'rb') as f:
+                    pdf_data = f.read()
+                
+                os.unlink(tmp.name)
+            
+            response = make_response(pdf_data)
+            response.headers['Content-Type'] = 'application/pdf'
+            response.headers['Content-Disposition'] = f'attachment; filename=leave_application_{app_id}.pdf'
+            return response
 
-        # 4. Return response
-        response = make_response(pdf)
-        response.headers['Content-Type'] = 'application/pdf'
-        response.headers['Content-Disposition'] = f'attachment; filename=leave_application_{app_id}.pdf'
-        return response
+        except Exception as pdf_error:
+            current_app.logger.error(f"PDF render failed: {str(pdf_error)}")
+            raise  # Re-raise to be caught by outer handler
 
     except Exception as e:
-        logger.error(f"PDF generation failed: {str(e)}", exc_info=True)
-        flash("PDF generation failed. Please try again or contact support.", "danger")
+        current_app.logger.error(f"PDF generation failed: {str(e)}", exc_info=True)
+        flash("Failed to generate PDF. Please try again later.", "danger")
         return redirect(url_for('staff.staff_dashboard'))
     
 @staff_bp.route('/logout')
