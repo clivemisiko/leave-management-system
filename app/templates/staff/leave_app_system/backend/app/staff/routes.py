@@ -1,43 +1,28 @@
 from flask import Blueprint, render_template, request, redirect, url_for, current_app, flash, session
-from werkzeug.security import check_password_hash, generate_password_hash
-from ..extensions import mysql, mail
-from itsdangerous import URLSafeTimedSerializer
-from ..utils.email import send_reset_email
-from ..utils.auth import update_password
-from flask_mail import Message
+from werkzeug.security import check_password_hash
+from werkzeug.security import generate_password_hash
+from app import mysql  # assuming mysql is initialized in app/__init__.py
+from flask import render_template, session, redirect, url_for, flash
+from app import mysql
 from functools import wraps
 from datetime import datetime, timedelta
-import re
-import smtplib
+from functools import wraps
+from flask import session, redirect, url_for, flash
+from datetime import datetime
+from flask import render_template, session
 import MySQLdb.cursors
+#from flask_wtf.csrf import CSRFProtect
+from app.extensions import mysql
+from flask import current_app
+from itsdangerous import URLSafeTimedSerializer
+from app.utils.email import send_reset_email
+from app.utils.auth import update_password
+from flask_mail import Message
+from app import mail
+import smtplib
+
+import re  # Add this with your other imports at the top
 from email_validator import validate_email, EmailNotValidError
-import os
-import base64
-import tempfile
-from flask import current_app, make_response
-from weasyprint import HTML, CSS
-from weasyprint.text.fonts import FontConfiguration
-
-
-def get_logo_base64():
-    """Robust logo loader with multiple fallback locations"""
-    search_paths = [
-        os.path.join(current_app.static_folder, 'images', 'gov_logo.png'),
-        os.path.join(current_app.root_path, 'static', 'images', 'gov_logo.png'),
-        os.path.join('app', 'static', 'images', 'gov_logo.png'),
-        os.path.join('backend', 'static', 'images', 'gov_logo.png')
-    ]
-    
-    for path in search_paths:
-        try:
-            if os.path.exists(path):
-                with open(path, 'rb') as f:
-                    return f"data:image/png;base64,{base64.b64encode(f.read()).decode('utf-8')}"
-        except Exception as e:
-            current_app.logger.warning(f"Failed to load logo from {path}: {str(e)}")
-    
-    current_app.logger.error("Logo not found in any standard location")
-    return ""
 
 staff_bp = Blueprint('staff', __name__, template_folder='templates')
 
@@ -508,70 +493,45 @@ def create_staff_application():
 @staff_bp.route('/application/download/<int:app_id>')
 @staff_required
 def download_application_pdf(app_id):
-    try:
-        # 1. Verify application exists and belongs to current staff
-        staff_id = session['staff_id']
-        with mysql.connection.cursor(MySQLdb.cursors.DictCursor) as cur:
-            cur.execute("""
-                SELECT * FROM leave_applications 
-                WHERE id = %s AND staff_id = %s
-            """, (app_id, staff_id))
-            application = cur.fetchone()
+    cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
-            if not application:
-                flash("Application not found or unauthorized", "danger")
-                return redirect(url_for('staff.staff_dashboard'))
+    # ✅ Fetch the leave application
+    cur.execute("""
+        SELECT * FROM leave_applications WHERE id = %s AND staff_id = %s
+    """, (app_id, session['staff_id']))
+    app = cur.fetchone()
 
-            if application['status'] != 'approved':
-                flash("Only approved applications can be printed", "warning")
-                return redirect(url_for('staff.staff_dashboard'))
-
-            # Get current leave balance
-            cur.execute("SELECT leave_balance FROM staff WHERE id = %s", (staff_id,))
-            staff_info = cur.fetchone()
-
-        # 2. Prepare template data
-        template_data = {
-            'app': application,
-            'leave_balance': staff_info['leave_balance'] if staff_info else 'N/A',
-            'logo_data': get_logo_base64() or ''
-        }
-
-        # 3. Format dates
-        date_fields = ['start_date', 'end_date', 'last_leave_start', 'last_leave_end']
-        for field in date_fields:
-            if template_data['app'].get(field) and isinstance(template_data['app'][field], str):
-                try:
-                    template_data['app'][field] = datetime.strptime(template_data['app'][field], '%Y-%m-%d').date()
-                except ValueError:
-                    template_data['app'][field] = None
-
-        # 4. Render and generate PDF
-        template_path = 'staff/pdf_template.html'
-        
-        # Verify template exists
-        if not os.path.exists(os.path.join(current_app.template_folder, template_path)):
-            current_app.logger.error(f"Template not found: {template_path}")
-            flash("PDF template missing", "danger")
-            return redirect(url_for('staff.staff_dashboard'))
-
-        pdf = HTML(
-            string=render_template(template_path, **template_data),
-            base_url=os.path.join(current_app.root_path, 'static')
-        ).write_pdf(
-            stylesheets=[CSS(string='@page { margin: 2cm; }')]
-        )
-
-        response = make_response(pdf)
-        response.headers['Content-Type'] = 'application/pdf'
-        response.headers['Content-Disposition'] = f'attachment; filename=leave_application_{app_id}.pdf'
-        return response
-
-    except Exception as e:
-        current_app.logger.error(f"PDF generation failed: {str(e)}", exc_info=True)
-        flash('Failed to generate PDF. Please try again later.', 'danger')
+    if not app:
+        flash("Application not found or unauthorized.", "danger")
         return redirect(url_for('staff.staff_dashboard'))
+
+    if app['status'] != 'approved':
+        flash("You can only print approved leave applications.", "warning")
+        return redirect(url_for('staff.staff_dashboard'))
+
+    # ✅ Fetch current leave balance from staff table
+    cur.execute("SELECT leave_balance FROM staff WHERE id = %s", (session['staff_id'],))
+    staff_info = cur.fetchone()
+    cur.close()
+
+    # ✅ Attach leave_balance to app context for PDF rendering
+    app['leave_balance'] = staff_info['leave_balance'] if staff_info else 'N/A'
+
+    # ✅ Select appropriate template (adjust if you use user_type or separate paths)
+    template_name = 'admin/pdf_template_staff.html' if app.get('user_type') == 'Staff' else 'pdf_template_hod.html'
     
+    # ✅ Render PDF HTML
+    rendered = render_template(template_name, app=app)
+
+    from weasyprint import HTML
+    pdf = HTML(string=rendered, base_url=request.root_url).write_pdf()
+
+    from flask import make_response
+    response = make_response(pdf)
+    response.headers['Content-Type'] = 'application/pdf'
+    response.headers['Content-Disposition'] = f'inline; filename=leave_application_{app_id}.pdf'
+    return response
+
 @staff_bp.route('/logout')
 def staff_logout():
     session.clear()
@@ -622,11 +582,3 @@ def cancel_application(id):
 
     return redirect(url_for('staff.staff_dashboard'))
 
-@staff_bp.route('/debug-logo')
-def debug_logo():
-    logo = get_logo_base64()
-    return f"""
-    <h1>Logo Debug</h1>
-    <p>Logo exists: {bool(logo)}</p>
-    <img src="{logo}" style="height: 100px;">
-    """

@@ -1,0 +1,51 @@
+2025-06-21 12:50:11,445 ERROR: Failed to send email: (535, b'5.7.8 Username and Password not accepted. For more information, go to\n5.7.8  https://support.google.com/mail/?p=BadCredentials ffacd0b85a97d-3a6d0f1808bsm4244252f8f.24 - gsmtp') [in c:\Users\ADMIN\leave_app_system\backend\app\staff\routes.py:231]
+2025-06-21 12:52:12,788 ERROR: Failed to send email: (535, b'5.7.8 Username and Password not accepted. For more information, go to\n5.7.8  https://support.google.com/mail/?p=BadCredentials 5b1f17b1804b1-4535ead202asm82317235e9.27 - gsmtp') [in c:\Users\ADMIN\leave_app_system\backend\app\staff\routes.py:231]
+2025-06-21 12:57:01,554 ERROR: Email sending failed: (535, b'5.7.8 Username and Password not accepted. For more information, go to\n5.7.8  https://support.google.com/mail/?p=BadCredentials ffacd0b85a97d-3a6d0f10558sm4326915f8f.16 - gsmtp') [in c:\Users\ADMIN\leave_app_system\backend\app\staff\routes.py:237]
+2025-06-21 13:26:04,387 ERROR: Password reset error: (535, b'5.7.8 Username and Password not accepted. For more information, go to\n5.7.8  https://support.google.com/mail/?p=BadCredentials 5b1f17b1804b1-453646fd74asm49456205e9.22 - gsmtp') [in c:\Users\ADMIN\leave_app_system\backend\app\staff\routes.py:272]
+2025-06-21 13:38:10,798 ERROR: Password reset error: staff/reset_password.html [in c:\Users\ADMIN\leave_app_system\backend\app\staff\routes.py:323]
+2025-06-21 13:38:32,392 ERROR: Password reset error: staff/reset_password.html [in c:\Users\ADMIN\leave_app_system\backend\app\staff\routes.py:323]
+2025-06-21 13:44:41,470 ERROR: Token validation failed: Signature b'ZWBif43D4dpysrVUPQpuoXIj-Dc' does not match [in c:\Users\ADMIN\leave_app_system\backend\app\staff\routes.py:309]
+2025-06-21 13:44:49,760 ERROR: Token validation failed: staff/reset_password.html [in c:\Users\ADMIN\leave_app_system\backend\app\staff\routes.py:309]
+2025-06-21 13:46:53,110 ERROR: Password reset error: Signature b'ZWBif43D4dpysrVUPQpuoXIj-Dc' does not match [in c:\Users\ADMIN\leave_app_system\backend\app\staff\routes.py:340]
+2025-06-21 13:47:02,497 ERROR: Password reset error: Signature b'ZWBif43D4dpysrVUPQpuoXIj-Dc' does not match [in c:\Users\ADMIN\leave_app_system\backend\app\staff\routes.py:340]
+2025-06-21 13:47:44,218 ERROR: Password reset error: Signature b'ZWBif43D4dpysrVUPQpuoXIj-Dc' does not match [in c:\Users\ADMIN\leave_app_system\backend\app\staff\routes.py:340]
+2025-06-21 13:49:47,300 ERROR: Password reset failed: {'error': "Signature b'ZWBif43D4dpysrVUPQpuoXIj-Dc' does not match", 'email': None, 'timestamp': '2025-06-21T10:49:47.300522'} [in c:\Users\ADMIN\leave_app_system\backend\app\staff\routes.py:364]
+2025-06-21 13:53:20,412 ERROR: Password reset failed: {'error': 'staff/reset_password.html', 'email': 'clivemisiko01@gmail.com', 'timestamp': '2025-06-21T10:53:20.412010'} [in c:\Users\ADMIN\leave_app_system\backend\app\staff\routes.py:364]
+2025-06-21 13:55:17,268 INFO: Token decoded for email: clivemisiko01@gmail.com [in c:\Users\ADMIN\leave_app_system\backend\app\staff\routes.py:303]
+2025-06-21 13:55:17,273 CRITICAL: Unexpected error: staff/reset_password.html [in c:\Users\ADMIN\leave_app_system\backend\app\staff\routes.py:382]
+Traceback (most recent call last):
+  File "c:\Users\ADMIN\leave_app_system\backend\app\staff\routes.py", line 379, in reset_password
+    return render_template('staff/reset_password.html', token=token)
+  File "C:\Users\ADMIN\leave_app_system\venv\Lib\site-packages\flask\templating.py", line 149, in render_template
+    template = app.jinja_env.get_or_select_template(template_name_or_list)
+  File "C:\Users\ADMIN\leave_app_system\venv\Lib\site-packages\jinja2\environment.py", line 1087, in get_or_select_template
+    return self.get_template(template_name_or_list, parent, globals)
+           ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ADMIN\leave_app_system\venv\Lib\site-packages\jinja2\environment.py", line 1016, in get_template
+    return self._load_template(name, globals)
+           ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "C:\Users\ADMIN\leave_app_system\venv\Lib\site-packages\jinja2\environment.py", line 975, in _load_template
+    template = self.loader.load(self, name, self.make_globals(globals))
+  File "C:\Users\ADMIN\leave_app_system\venv\Lib\site-packages\jinja2\loaders.py", line 126, in load
+    source, filename, uptodate = self.get_source(environment, name)
+                                 ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ADMIN\leave_app_system\venv\Lib\site-packages\flask\templating.py", line 65, in get_source
+    return self._get_source_fast(environment, template)
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ADMIN\leave_app_system\venv\Lib\site-packages\flask\templating.py", line 99, in _get_source_fast
+    raise TemplateNotFound(template)
+jinja2.exceptions.TemplateNotFound: staff/reset_password.html
+2025-06-21 13:55:45,643 INFO: Token decoded for email: clivemisiko01@gmail.com [in c:\Users\ADMIN\leave_app_system\backend\app\staff\routes.py:303]
+2025-06-21 13:55:45,647 WARNING: Token mismatch for: clivemisiko01@gmail.com [in c:\Users\ADMIN\leave_app_system\backend\app\staff\routes.py:325]
+2025-06-21 14:03:57,349 INFO: Password reset sent to clivemisiko01@gmail.com [in c:\Users\ADMIN\leave_app_system\backend\app\staff\routes.py:273]
+2025-06-21 14:04:04,867 WARNING: Invalid token for clivemisiko01@gmail.com [in c:\Users\ADMIN\leave_app_system\backend\app\staff\routes.py:316]
+2025-06-21 14:08:12,907 WARNING: Token not found for email: clivemisiko01@gmail.com [in c:\Users\ADMIN\leave_app_system\backend\app\staff\routes.py:308]
+2025-06-23 08:37:19,564 ERROR: Token validation failed: staff/reset_password.html [in c:\Users\ADMIN\leave_app_system\backend\app\staff\routes.py:343]
+2025-06-23 08:37:47,849 ERROR: Invalid token for clivemisiko01@gmail.com [in c:\Users\ADMIN\leave_app_system\backend\app\staff\routes.py:312]
+2025-06-23 08:37:50,349 ERROR: Token validation failed: staff/reset_password.html [in c:\Users\ADMIN\leave_app_system\backend\app\staff\routes.py:343]
+2025-06-23 08:42:17,626 ERROR: Token validation failed: staff/reset_password.html [in c:\Users\ADMIN\leave_app_system\backend\app\staff\routes.py:342]
+2025-06-23 08:42:21,528 ERROR: Invalid token for clivemisiko01@gmail.com [in c:\Users\ADMIN\leave_app_system\backend\app\staff\routes.py:312]
+2025-06-23 08:42:25,461 ERROR: Invalid token for clivemisiko01@gmail.com [in c:\Users\ADMIN\leave_app_system\backend\app\staff\routes.py:312]
+2025-06-23 08:42:38,635 ERROR: Token validation failed: staff/reset_password.html [in c:\Users\ADMIN\leave_app_system\backend\app\staff\routes.py:342]
+2025-06-23 08:48:04,756 ERROR: Token validation failed: staff/reset_password.html [in c:\Users\ADMIN\leave_app_system\backend\app\staff\routes.py:342]
+2025-06-23 17:29:44,339 ERROR: Error sending reset email: [Errno 11001] getaddrinfo failed [in c:\Users\ADMIN\leave_app_system\backend\app\staff\routes.py:285]

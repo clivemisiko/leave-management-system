@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>{% block title %}Admin Dashboard{% endblock %}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+
+    <style>
+        :root {
+            --micde-blue: #0056b3;
+            --micde-dark-blue: #003d7a;
+            --micde-light-blue: #e6f0ff;
+        }
+        
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+        .government-logo {
+            height: 60px;
+            width: auto;
+            object-fit: contain;
+        }
+
+         .ministry-header {
+            background-color: var(--micde-blue);
+            color: white;
+            padding: 15px 0;
+            margin-bottom: 0;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            position: relative;
+            z-index: 1030;
+        } 
+        .ministry-title {
+            color: var(--micde-blue);
+            font-weight: 700;
+            font-size: 1.5rem;
+            line-height: 1.2;
+        }
+        
+         .sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            width: 220px;
+            background-color: var(--micde-dark-blue);
+            color: white;
+            padding-top: 90px; /* Adjusted for header height */
+            z-index: 1020;
+            overflow-y: auto;
+        }
+         .sidebar-logo {
+            height: 50px;
+            width: auto;
+            margin-bottom: 10px;
+        }
+        .sidebar a {
+            padding: 12px 20px;
+            display: block;
+            color: white;
+            text-decoration: none;
+            transition: background-color 0.3s;
+        }
+        .sidebar-header {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            padding: 15px;
+            text-align: center;
+            background-color: var(--micde-dark-blue);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .sidebar a:hover, .sidebar .active {
+            background-color: var(--micde-blue);
+        }
+        
+        .content {
+        margin-left: 220px;
+        padding: 20px;
+        padding-top: 0;    /* Added to remove top padding */
+        }
+        
+        .main {
+        margin-top: 20px;  /* Reduced from 70px to 20px */
+        padding-top: 0;    /* Added to remove any padding */
+          }
+
+        .flash-message {
+            margin-top: 1rem;
+        }
+        
+        .staff-portal-label {
+            color: white;
+            font-weight: 600;
+            margin-left: auto;
+        }
+        .staff-info {
+        margin-top: 0;     /* Ensure no extra margin on the welcome card */
+    }
+    </style>
+</head>
+<body>
+
+    <!-- Ministry Header with Kenya Logo -->
+    <div class="ministry-header">
+        <div class="container">
+            <div class="d-flex align-items-center">
+                <!-- Kenyan Government Logo -->
+                <img src="{{ url_for('static', filename='images/kenya_logo.png') }}" 
+                     alt="Government of Kenya Logo" 
+                     class="government-logo">
+                
+                <!-- Ministry Title -->
+                <div class="ministry-title ms-3 text-white">
+                    MINISTRY OF INFORMATION, COMMUNICATIONS AND THE DIGITAL ECONOMY
+                    <div class="small text-muted">Republic of Kenya</div>
+                </div>
+                
+                <!-- Staff Portal Label -->
+                <div class="ms-auto text-white fw-bold">
+                    Admin Portal
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <h4 class="text-center mb-4">Admin Panel</h4>
+        <a href="{{ url_for('admin.admin_dashboard') }}" class="{% if request.endpoint == 'admin.admin_dashboard' %}active{% endif %}">
+            <i class="fas fa-home me-2"></i> Dashboard
+        </a>
+        <a href="{{ url_for('admin.create_application') }}" class="{% if request.endpoint == 'admin.create_application' %}active{% endif %}">
+            <i class="fas fa-plus me-2"></i> New Application
+        </a>
+        <a href="{{ url_for('admin.admin_logout') }}">
+            <i class="fas fa-sign-out-alt me-2"></i> Logout
+        </a>
+    </div>
+
+    <!-- Main Content -->
+    <div class="content main">
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flash-message">
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        <!-- Page Content -->
+        {% block content %}
+        {% endblock %}
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
