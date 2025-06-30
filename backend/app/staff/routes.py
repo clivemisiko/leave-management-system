@@ -505,16 +505,19 @@ def create_staff_application():
 
     return render_template('staff/create_application.html')
 
-@staff_bp.route('/application/download/<int:app_id>')
+@staff_bp.route('/application/print/<int:app_id>')
 @staff_required
-def download_application_pdf(app_id):
+def print_application(app_id):
     try:
-        # 1. Verify application exists and belongs to current staff
+        # 1. Verify application belongs to current staff member
         staff_id = session['staff_id']
         with mysql.connection.cursor(MySQLdb.cursors.DictCursor) as cur:
+            # Fetch application with designation info
             cur.execute("""
-                SELECT * FROM leave_applications 
-                WHERE id = %s AND staff_id = %s
+                SELECT la.*, s.designation, s.leave_balance 
+                FROM leave_applications la
+                JOIN staff s ON la.staff_id = s.id
+                WHERE la.id = %s AND la.staff_id = %s
             """, (app_id, staff_id))
             application = cur.fetchone()
 
@@ -526,49 +529,39 @@ def download_application_pdf(app_id):
                 flash("Only approved applications can be printed", "warning")
                 return redirect(url_for('staff.staff_dashboard'))
 
-            # Get current leave balance
-            cur.execute("SELECT leave_balance FROM staff WHERE id = %s", (staff_id,))
-            staff_info = cur.fetchone()
-
         # 2. Prepare template data
         template_data = {
             'app': application,
-            'leave_balance': staff_info['leave_balance'] if staff_info else 'N/A',
             'logo_data': get_logo_base64() or ''
         }
 
-        # 3. Format dates
-        date_fields = ['start_date', 'end_date', 'last_leave_start', 'last_leave_end']
-        for field in date_fields:
-            if template_data['app'].get(field) and isinstance(template_data['app'][field], str):
-                try:
-                    template_data['app'][field] = datetime.strptime(template_data['app'][field], '%Y-%m-%d').date()
-                except ValueError:
-                    template_data['app'][field] = None
+        # 3. Determine which template to use based on designation
+        is_hod = 'HOD' in application['designation'] or 'Head' in application['designation']
+        template_name = 'admin/pdf_template_hod.html' if is_hod else 'admin/pdf_template_staff.html'
 
-        # 4. Render and generate PDF
-        template_path = 'admin/pdf_template_hod.html'      
-        # Verify template exists
-        if not os.path.exists(os.path.join(current_app.template_folder, template_path)):
-            current_app.logger.error(f"Template not found: {template_path}")
-            flash("PDF template missing", "danger")
+        # 4. Verify template exists
+        full_template_path = os.path.join(current_app.template_folder, template_name)
+        if not os.path.exists(full_template_path):
+            current_app.logger.error(f"Template not found: {full_template_path}")
+            flash("Printing service is currently unavailable", "danger")
             return redirect(url_for('staff.staff_dashboard'))
 
+        # 5. Generate PDF
         pdf = HTML(
-            string=render_template(template_path, **template_data),
+            string=render_template(template_name, **template_data),
             base_url=os.path.join(current_app.root_path, 'static')
         ).write_pdf(
-            stylesheets=[CSS(string='@page { margin: 2cm; }')]
+            stylesheets=[CSS(string='@page { margin: 1.5cm; }')]
         )
 
         response = make_response(pdf)
         response.headers['Content-Type'] = 'application/pdf'
-        response.headers['Content-Disposition'] = f'attachment; filename=leave_application_{app_id}.pdf'
+        response.headers['Content-Disposition'] = f'inline; filename=leave_application_{app_id}.pdf'
         return response
 
     except Exception as e:
-        current_app.logger.error(f"PDF generation failed: {str(e)}", exc_info=True)
-        flash('Failed to generate PDF. Please try again later.', 'danger')
+        current_app.logger.error(f"Print failed: {str(e)}", exc_info=True)
+        flash("Failed to generate printout. Please try again later.", "danger")
         return redirect(url_for('staff.staff_dashboard'))
     
 @staff_bp.route('/logout')
