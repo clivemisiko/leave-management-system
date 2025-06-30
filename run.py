@@ -2,8 +2,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from flask import redirect, url_for, session
-from backend.app import create_app
-from backend.app.extensions import mysql  # ✅ Add this line
+from app import create_app
+from app.extensions import mysql  # ✅ Add this line
 
 app = create_app()
 

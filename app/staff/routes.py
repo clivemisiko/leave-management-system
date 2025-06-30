@@ -553,8 +553,10 @@ def download_application_pdf(app_id):
     rendered = render_template(template_name, app=app)
 
     # ✅ Use local filesystem path to resolve static file
-    pdf = HTML(string=rendered, base_url=current_app.root_path).write_pdf()
-
+    pdf = HTML(
+    string=rendered,
+    base_url=os.path.join(current_app.root_path, 'static')
+).write_pdf()
     response = make_response(pdf)
     response.headers['Content-Type'] = 'application/pdf'
     response.headers['Content-Disposition'] = f'inline; filename=leave_application_{app_id}.pdf'

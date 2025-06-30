@@ -1,35 +1,30 @@
-from flask import Flask
+import os
 from datetime import datetime
+from flask import Flask
 from flask_mail import Mail
-
-from config import Config
 from .extensions import mysql, mail
-
-
+from .config import Config
 
 def create_app():
-    app = Flask(__name__, template_folder='../templates', static_folder='../static')
+    # Configure absolute paths
+    base_dir = os.path.abspath(os.path.dirname(__file__))
+    template_path = os.path.join(base_dir, 'templates')
+    static_path = os.path.join(base_dir, 'static')
+    
+    app = Flask(
+        __name__,
+        template_folder=template_path,
+        static_folder=static_path
+    )
 
-    # Load config from class only
+    # Load configuration
     app.config.from_object(Config)
 
     # Initialize extensions
     mysql.init_app(app)
     mail.init_app(app)
- 
 
-    # Optional MySQL connection test
-    with app.app_context():
-        try:
-            conn = mysql.connection
-            cur = conn.cursor()
-            cur.execute("SHOW TABLES")
-            print("✅ Successfully connected to MySQL")
-            print(f"Tables: {cur.fetchall()}")
-        except Exception as e:
-            print(f"❌ Connection failed: {e}")
-
-    # Filters
+    # Register template filters
     @app.template_filter('format_datetime')
     def format_datetime(value):
         if value is None:
@@ -57,27 +52,41 @@ def create_app():
         except:
             return str(value)
 
-    # Blueprints
-    from .admin.routes import admin_bp
-    from .staff.routes import staff_bp
+    # Register blueprints
+    from app.admin.routes import admin_bp
+    from app.staff.routes import staff_bp
 
     app.register_blueprint(admin_bp, url_prefix='/admin')
     app.register_blueprint(staff_bp, url_prefix='/staff')
 
-    # Logging for production
+    # Configure logging
     if not app.debug:
         import logging
         from logging.handlers import RotatingFileHandler
-        file_handler = RotatingFileHandler('app.log', maxBytes=10240)
+        
+        if not os.path.exists('logs'):
+            os.mkdir('logs')
+            
+        file_handler = RotatingFileHandler(
+            'logs/app.log',
+            maxBytes=10240,
+            backupCount=10
+        )
         file_handler.setFormatter(logging.Formatter(
             '%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'
         ))
+        file_handler.setLevel(logging.INFO)
         app.logger.addHandler(file_handler)
         app.logger.setLevel(logging.INFO)
+        app.logger.info('Application startup')
 
+    # Add security headers
     @app.after_request
     def after_request(response):
         response.headers['Connection'] = 'close'
+        response.headers['X-Content-Type-Options'] = 'nosniff'
+        response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+        response.headers['X-XSS-Protection'] = '1; mode=block'
         return response
 
     return app
