@@ -509,61 +509,63 @@ def create_staff_application():
 @staff_required
 def download_application_pdf(app_id):
     try:
-        # 1. Verify application exists and is approved
-        with current_app.mysql.connection.cursor() as cur:
+        # 1. Verify application exists and belongs to current staff
+        staff_id = session.get('staff_id')
+        with mysql.connection.cursor(MySQLdb.cursors.DictCursor) as cur:
+            # Fetch application
             cur.execute("""
-                SELECT la.*, s.leave_balance 
-                FROM leave_applications la
-                JOIN staff s ON la.staff_id = s.id
-                WHERE la.id = %s AND la.staff_id = %s AND la.status = 'approved'
-            """, (app_id, session['staff_id']))
-            app = cur.fetchone()
-            
-            if not app:
-                flash("Application not found or not approved", "danger")
+                SELECT * FROM leave_applications 
+                WHERE id = %s AND staff_id = %s
+            """, (app_id, staff_id))
+            application = cur.fetchone()
+
+            if not application:
+                flash("Application not found or unauthorized", "danger")
                 return redirect(url_for('staff.staff_dashboard'))
 
-        # 2. Prepare context with fallbacks
-        context = {
-            'app': app,
-            'logo_data': get_logo_base64() or '',
-            'today': datetime.now().strftime('%Y-%m-%d')
-        }
+            if application['status'] != 'approved':
+                flash("You can only print approved leave applications", "warning")
+                return redirect(url_for('staff.staff_dashboard'))
 
-        # 3. Generate PDF with temporary file fallback
-        try:
-            font_config = FontConfiguration()
-            html = HTML(
-                string=render_template('staff/pdf_template.html', **context),
-                base_url=os.path.dirname(current_app.static_folder)
-            )
-            
-            # Generate to temporary file first
-            with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp:
-                html.write_pdf(
-                    target=tmp.name,
-                    stylesheets=[CSS(string='@page { size: A4; margin: 2cm; }')],
-                    font_config=font_config
-                )
-                
-                # Read back the temporary file
-                with open(tmp.name, 'rb') as f:
-                    pdf_data = f.read()
-                
-                os.unlink(tmp.name)
-            
-            response = make_response(pdf_data)
-            response.headers['Content-Type'] = 'application/pdf'
-            response.headers['Content-Disposition'] = f'attachment; filename=leave_application_{app_id}.pdf'
-            return response
+            # Fetch current leave balance
+            cur.execute("SELECT leave_balance FROM staff WHERE id = %s", (staff_id,))
+            staff_info = cur.fetchone()
 
-        except Exception as pdf_error:
-            current_app.logger.error(f"PDF render failed: {str(pdf_error)}")
-            raise  # Re-raise to be caught by outer handler
+        # 2. Prepare data for template
+        application['leave_balance'] = staff_info['leave_balance'] if staff_info else 'N/A'
+        
+        # Convert string dates to datetime objects
+        date_fields = ['start_date', 'end_date', 'last_leave_start', 'last_leave_end']
+        for field in date_fields:
+            if application.get(field) and isinstance(application[field], str):
+                try:
+                    application[field] = datetime.strptime(application[field], '%Y-%m-%d').date()
+                except ValueError:
+                    application[field] = None
+
+        # 3. Get base64 encoded logo
+        logo_data = get_logo_base64()
+        if not logo_data:
+            current_app.logger.warning("Logo file not found or could not be loaded")
+
+        # 4. Generate PDF
+        template = 'staff/pdf_template.html'  # Your staff-specific template
+        
+        pdf = HTML(
+            string=render_template(template, app=application, logo_data=logo_data),
+            base_url=os.path.join(current_app.root_path, 'static')
+        ).write_pdf(
+            stylesheets=[CSS(string='@page { margin: 2cm; }')]
+        )
+
+        response = make_response(pdf)
+        response.headers['Content-Type'] = 'application/pdf'
+        response.headers['Content-Disposition'] = f'attachment; filename=leave_application_{app_id}.pdf'
+        return response
 
     except Exception as e:
         current_app.logger.error(f"PDF generation failed: {str(e)}", exc_info=True)
-        flash("Failed to generate PDF. Please try again later.", "danger")
+        flash('Failed to generate PDF. Please try again later.', 'danger')
         return redirect(url_for('staff.staff_dashboard'))
     
 @staff_bp.route('/logout')

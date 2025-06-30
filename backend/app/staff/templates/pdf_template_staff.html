@@ -10,6 +10,10 @@
             line-height: 1.5;
             margin: 1.5cm;
         }
+        .logo-img {
+            height: 80px;
+            margin-bottom: 15px;
+        }
         .logo-container {
             text-align: center;
             margin-bottom: 15px;
@@ -78,9 +82,11 @@
 </head>
 <body>
 
+     {% if logo_data %}
     <div class="logo-container">
-        <img src="{{ get_logo_base64() }}" class="logo" alt="Organization Logo">
+        <img src="{{ logo_data }}" class="logo-img" alt="Organization Logo">
     </div>
+    {% endif %}
     <div class="header">
         <div class="ministry">Republic of Kenya</div>
         <div class="ministry">Ministry of Information, Communications and the Digital Economy</div>
