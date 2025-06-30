@@ -6,6 +6,7 @@ import MySQLdb.cursors
 import os
 from functools import wraps
 from datetime import datetime
+from .utils.images import get_logo_base64
 #from ..services.notification_service import send_leave_notification
 
 admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
@@ -20,6 +21,10 @@ def admin_required(f):
             return redirect(url_for('admin.admin_login'))
         return f(*args, **kwargs)
     return decorated_function
+
+@admin_bp.context_processor
+def utility_processor():
+    return dict(get_logo_base64=get_logo_base64)
 
 @admin_bp.route('/login', methods=['GET', 'POST'])
 def admin_login():
@@ -366,55 +371,85 @@ def reject_application(id):
 @admin_bp.route('/application/print/<int:id>')
 @admin_required
 def print_application(id):
-    cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-    cur.execute("""
-    SELECT la.*,
-       COALESCE(s.username, la.name) AS name,
-       COALESCE(s.pno, la.pno) AS pno,
-       CASE
-           WHEN la.designation LIKE '%%HOD%%'
-                OR la.designation LIKE '%%Head%%'
-           THEN 1
-           ELSE 0
-       END AS is_hod
-FROM leave_applications la
-LEFT JOIN staff s ON la.staff_id = s.id
-WHERE la.id = %s
+    try:
+        # 1. Fetch application data with proper error handling
+        cur = None
+        try:
+            cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+            cur.execute("""
+                SELECT la.*,
+                    COALESCE(s.username, la.name) AS name,
+                    COALESCE(s.pno, la.pno) AS pno,
+                    CASE
+                        WHEN la.designation LIKE '%%HOD%%' OR la.designation LIKE '%%Head%%'
+                        THEN 1 ELSE 0
+                    END AS is_hod
+                FROM leave_applications la
+                LEFT JOIN staff s ON la.staff_id = s.id
+                WHERE la.id = %s
+            """, (id,))
+            application = cur.fetchone()
+        except Exception as db_error:
+            current_app.logger.error(f"Database error: {str(db_error)}")
+            flash('Database error occurred', 'danger')
+            return redirect(url_for('admin.admin_dashboard'))
+        finally:
+            if cur:
+                cur.close()
 
-    """, (id,))
-    
-    application = cur.fetchone()
-    cur.close()
+        if not application:
+            flash('Application not found', 'danger')
+            return redirect(url_for('admin.admin_dashboard'))
 
-    if not application:
-        flash('Application not found', 'danger')
+        if application['status'] != 'approved':
+            flash('Only approved applications can be printed', 'warning')
+            return redirect(url_for('admin.admin_dashboard'))
+
+        # 2. Format date fields safely
+        date_fields = ('start_date', 'end_date', 'last_leave_start', 'last_leave_end', 'created_at')
+        for field in date_fields:
+            val = application.get(field)
+            if isinstance(val, str):
+                try:
+                    application[field] = datetime.fromisoformat(val)
+                except (ValueError, TypeError):
+                    application[field] = None
+
+        # 3. Get base64 logo data
+        logo_data = get_logo_base64()
+        if not logo_data:
+            current_app.logger.warning("Logo file not found or could not be loaded")
+
+        # 4. Prepare template context
+        template = 'admin/pdf_template_hod.html' if application['is_hod'] else 'admin/pdf_template_staff.html'
+        
+        # 5. Generate PDF with proper static file resolution
+        try:
+            rendered = render_template(
+                template,
+                app=application,
+                logo_data=logo_data  # Pass logo data directly to template
+            )
+            
+            # Use application root path for static assets
+            pdf = HTML(
+                string=rendered,
+                base_url=os.path.join(current_app.root_path, 'static')
+            ).write_pdf(
+                stylesheets=[CSS(string='@page { margin: 2cm; }')]
+            )
+            
+            response = make_response(pdf)
+            response.headers['Content-Type'] = 'application/pdf'
+            response.headers['Content-Disposition'] = f'inline; filename=leave_application_{id}.pdf'
+            return response
+            
+        except Exception as render_error:
+            current_app.logger.error(f"PDF generation failed: {str(render_error)}")
+            flash('Failed to generate PDF document', 'danger')
+            return redirect(url_for('admin.admin_dashboard'))
+
+    except Exception as e:
+        current_app.logger.error(f"Unexpected error: {str(e)}")
+        flash('An unexpected error occurred', 'danger')
         return redirect(url_for('admin.admin_dashboard'))
-
-    # 🚫 Block print if not approved
-    if application['status'] != 'approved':
-        flash('Only approved applications can be printed.', 'warning')
-        return redirect(url_for('admin.admin_dashboard'))
-
-    # Format date fields
-    for field in ('start_date', 'end_date', 'last_leave_start', 'last_leave_end', 'created_at'):
-        val = application.get(field)
-        if isinstance(val, str):
-            try:
-                application[field] = datetime.fromisoformat(val)
-            except ValueError:
-                application[field] = None
-
-
-    template = 'admin/pdf_template_hod.html' if application['is_hod'] else 'admin/pdf_template_staff.html'
-
-    rendered = render_template(template, app=application)
-
-    pdf = HTML(string=rendered, base_url=request.root_url).write_pdf(
-        stylesheets=[CSS(string='@page { margin: 2cm; }')]
-    )
-
-    response = make_response(pdf)
-    response.headers['Content-Type'] = 'application/pdf'
-    response.headers['Content-Disposition'] = f'inline; filename=leave_application_{id}.pdf'
-    return response
-
