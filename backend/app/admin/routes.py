@@ -422,5 +422,46 @@ def print_application(id):
     response.headers['Content-Disposition'] = f'inline; filename=leave_application_{id}.pdf'
     return response
 
+@admin_bp.route('/staff/delete/<int:staff_id>', methods=['POST'])
+@admin_required
+def delete_staff(staff_id):
+    cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    try:
+        # Fetch staff info to confirm existence
+        cur.execute("SELECT * FROM staff WHERE id = %s", (staff_id,))
+        staff = cur.fetchone()
 
+        if not staff:
+            flash('Staff member not found.', 'danger')
+            return redirect(url_for('admin.admin_dashboard'))
+
+        # Delete the staff record (leave_applications will be deleted automatically)
+        cur.execute("DELETE FROM staff WHERE id = %s", (staff_id,))
+        mysql.connection.commit()
+
+        flash(f"Staff {staff['username']} and their applications deleted successfully.", "success")
+    except Exception as e:
+        mysql.connection.rollback()
+        current_app.logger.error(f"Error deleting staff: {str(e)}")
+        flash("Error deleting staff member.", "danger")
+    finally:
+        cur.close()
+
+    return redirect(url_for('admin.admin_dashboard'))
+
+@admin_bp.route('/delete-staff/<int:staff_id>', methods=['POST'])
+@admin_required
+def delete_staff(staff_id):
+    try:
+        cur = mysql.connection.cursor()
+        # First delete dependent leave applications
+        cur.execute("DELETE FROM leave_applications WHERE staff_id = %s", (staff_id,))
+        # Then delete the staff
+        cur.execute("DELETE FROM staff WHERE id = %s", (staff_id,))
+        mysql.connection.commit()
+        flash('Staff and their leave applications deleted successfully.', 'success')
+    except Exception as e:
+        mysql.connection.rollback()
+        flash(f'Error deleting staff: {e}', 'error')
+    return redirect(url_for('admin.admin_dashboard'))
 
