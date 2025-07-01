@@ -32,7 +32,7 @@ def get_logo_base64():
     import base64, os
 
     # ✅ Absolute path to logo file
-    logo_path = os.path.join(current_app.root_path, 'static', 'images', 'gov_logo.png')
+    logo_path = os.path.join(current_app.root_path, 'static', 'images', 'kenya_logo.png')
 
     if not os.path.exists(logo_path):
         print("❌ LOGO FILE NOT FOUND:", logo_path)
@@ -546,8 +546,9 @@ def print_application(app_id):
     # ✅ Select correct PDF template
     template_name = 'admin/pdf_template_staff.html' if app.get('user_type') == 'Staff' else 'admin/pdf_template_hod.html'
 
-    # ✅ Render PDF with full base_url so logo resolves
-    rendered = render_template(template_name, app=app)
+        # ✅ Render PDF with full base_url so logo resolves
+    logo_base64 = get_logo_base64()
+    rendered = render_template(template_name, app=app, logo_base64=logo_base64)
     pdf = HTML(string=rendered, base_url=request.url_root).write_pdf()
 
     response = make_response(pdf)

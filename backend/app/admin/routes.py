@@ -12,7 +12,7 @@ import os
 from flask import current_app, request
 
 def get_logo_base64():
-    logo_path = os.path.join(current_app.root_path, 'static', 'images', 'gov_logo.png')  # Adjust path if different
+    logo_path = os.path.join(current_app.root_path, 'static', 'images', 'kenya_logo.png')  # Adjust path if different
     with open(logo_path, 'rb') as f:
         encoded = base64.b64encode(f.read()).decode('utf-8')
     return f"data:image/png;base64,{encoded}"
@@ -411,8 +411,9 @@ def print_application(id):
 
     template = 'admin/pdf_template_hod.html' if application['is_hod'] else 'admin/pdf_template_staff.html'
 
-    # ✅ Render with request.url_root so logo loads
-    rendered = render_template(template, app=application)
+        # ✅ Render with request.url_root so logo loads
+    logo_base64 = get_logo_base64()
+    rendered = render_template(template, app=application, logo_base64=logo_base64)
     pdf = HTML(string=rendered, base_url=request.url_root).write_pdf()
 
     response = make_response(pdf)

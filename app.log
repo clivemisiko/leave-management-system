@@ -85,13 +85,13 @@ Traceback (most recent call last):
   File "C:\Users\ADMIN\leave_app_system\venv\Lib\site-packages\pymysql\err.py", line 150, in raise_mysql_exception
     raise errorclass(errno, errval)
 pymysql.err.OperationalError: (1054, "Unknown column 's.designation' in 'field list'")
-2025-07-01 08:49:04,568 ERROR: Logo file not found at: c:\Users\ADMIN\leave_app_system\backend\app\static\images\gov_logo.png [in c:\Users\ADMIN\leave_app_system\backend\app\admin\utils\images.py:10]
+2025-07-01 08:49:04,568 ERROR: Logo file not found at: c:\Users\ADMIN\leave_app_system\backend\app\static\images\kenya_logo.png [in c:\Users\ADMIN\leave_app_system\backend\app\admin\utils\images.py:10]
 2025-07-01 08:49:04,570 WARNING: Logo file not found or could not be loaded [in c:\Users\ADMIN\leave_app_system\backend\app\admin\routes.py:421]
-2025-07-01 08:49:10,176 ERROR: Logo file not found at: c:\Users\ADMIN\leave_app_system\backend\app\static\images\gov_logo.png [in c:\Users\ADMIN\leave_app_system\backend\app\admin\utils\images.py:10]
+2025-07-01 08:49:10,176 ERROR: Logo file not found at: c:\Users\ADMIN\leave_app_system\backend\app\static\images\kenya_logo.png [in c:\Users\ADMIN\leave_app_system\backend\app\admin\utils\images.py:10]
 2025-07-01 08:49:10,177 WARNING: Logo file not found or could not be loaded [in c:\Users\ADMIN\leave_app_system\backend\app\admin\routes.py:421]
-2025-07-01 08:52:26,258 ERROR: Logo file not found at: c:\Users\ADMIN\leave_app_system\backend\app\static\images\gov_logo.png [in c:\Users\ADMIN\leave_app_system\backend\app\admin\utils\images.py:10]
+2025-07-01 08:52:26,258 ERROR: Logo file not found at: c:\Users\ADMIN\leave_app_system\backend\app\static\images\kenya_logo.png [in c:\Users\ADMIN\leave_app_system\backend\app\admin\utils\images.py:10]
 2025-07-01 08:52:26,262 WARNING: Logo file not found or could not be loaded [in c:\Users\ADMIN\leave_app_system\backend\app\admin\routes.py:421]
-2025-07-01 08:52:28,978 ERROR: Logo file not found at: c:\Users\ADMIN\leave_app_system\backend\app\static\images\gov_logo.png [in c:\Users\ADMIN\leave_app_system\backend\app\admin\utils\images.py:10]
+2025-07-01 08:52:28,978 ERROR: Logo file not found at: c:\Users\ADMIN\leave_app_system\backend\app\static\images\kenya_logo.png [in c:\Users\ADMIN\leave_app_system\backend\app\admin\utils\images.py:10]
 2025-07-01 08:52:28,981 WARNING: Logo file not found or could not be loaded [in c:\Users\ADMIN\leave_app_system\backend\app\admin\routes.py:421]
 2025-07-01 08:53:32,839 ERROR: Print failed: (1054, "Unknown column 's.designation' in 'field list'") [in c:\Users\ADMIN\leave_app_system\backend\app\staff\routes.py:563]
 Traceback (most recent call last):

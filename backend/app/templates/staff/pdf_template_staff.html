@@ -82,8 +82,7 @@
 <body>
 
 <div class="logo-container">
-{% if logo_data %}
-<img src="{{ url_for('static', filename='images/kenya_logo.png', _external=True) }}">
+{% if logo_base64 %}<img src="{{ logo_base64 }}" alt="Kenya Government Logo" style="height: 80px;">
     {% endif %}
 </div>
 
