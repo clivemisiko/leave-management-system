@@ -449,19 +449,22 @@ def delete_staff(staff_id):
 
     return redirect(url_for('admin.admin_dashboard'))
 
+@admin_bp.route('/staff-users')
+def view_staff():
+    cur = mysql.connection.cursor()
+    cur.execute("SELECT * FROM staff")
+    staff_list = cur.fetchall()
+    cur.close()
+    return render_template('admin/view_staff.html', staff_list=staff_list)
+
 @admin_bp.route('/delete-staff/<int:staff_id>', methods=['POST'])
-@admin_required
 def delete_staff(staff_id):
     try:
         cur = mysql.connection.cursor()
-        # First delete dependent leave applications
-        cur.execute("DELETE FROM leave_applications WHERE staff_id = %s", (staff_id,))
-        # Then delete the staff
         cur.execute("DELETE FROM staff WHERE id = %s", (staff_id,))
         mysql.connection.commit()
-        flash('Staff and their leave applications deleted successfully.', 'success')
+        cur.close()
+        flash("Staff user deleted successfully.", "success")
     except Exception as e:
-        mysql.connection.rollback()
-        flash(f'Error deleting staff: {e}', 'error')
-    return redirect(url_for('admin.admin_dashboard'))
-
+        flash(f"Error deleting staff user: {str(e)}", "danger")
+    return redirect(url_for('admin.view_staff'))
