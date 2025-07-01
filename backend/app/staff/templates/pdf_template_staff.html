@@ -10,14 +10,13 @@
             line-height: 1.5;
             margin: 1.5cm;
         }
-        .logo-img {
-            height: 80px;
-            margin-bottom: 15px;
-        }
         .logo-container {
             text-align: center;
             margin-bottom: 15px;
         }
+        @page { margin: 2cm; }
+        body { font-family: "Times New Roman", serif; }
+        .logo { height: 80px; }
         .logo {
             height: 80px;
             margin-bottom: 10px;
@@ -82,11 +81,13 @@
 </head>
 <body>
 
-     {% if logo_data %}
-    <div class="logo-container">
-        <img src="{{ logo_data }}" class="logo-img" alt="Organization Logo">
-    </div>
+<div class="logo-container">
+{% if logo_data %}
+    <img src="{{ logo_data }}" class="logo" alt="Logo">
     {% endif %}
+</div>
+
+
     <div class="header">
         <div class="ministry">Republic of Kenya</div>
         <div class="ministry">Ministry of Information, Communications and the Digital Economy</div>

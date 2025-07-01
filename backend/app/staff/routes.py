@@ -1,43 +1,56 @@
 from flask import Blueprint, render_template, request, redirect, url_for, current_app, flash, session
-from werkzeug.security import check_password_hash, generate_password_hash
-from ..extensions import mysql, mail
-from itsdangerous import URLSafeTimedSerializer
-from ..utils.email import send_reset_email
-from ..utils.auth import update_password
-from flask_mail import Message
+from werkzeug.security import check_password_hash
+from werkzeug.security import generate_password_hash
+from app import mysql  # assuming mysql is initialized in app/__init__.py
+from flask import render_template, session, redirect, url_for, flash
+from app import mysql
 from functools import wraps
 from datetime import datetime, timedelta
-import re
-import smtplib
+from functools import wraps
+from flask import session, redirect, url_for, flash
+from datetime import datetime
+from flask import render_template, session
 import MySQLdb.cursors
-from email_validator import validate_email, EmailNotValidError
-import os
+#from flask_wtf.csrf import CSRFProtect
+from app.extensions import mysql
+from flask import current_app
+from itsdangerous import URLSafeTimedSerializer
+from app.utils.email import send_reset_email
+from app.utils.auth import update_password
+from flask_mail import Message
+from app import mail
+import smtplib
+from flask import render_template, flash, redirect, url_for, session, make_response, request
+from weasyprint import HTML
+from weasyprint import CSS
 import base64
-import tempfile
-from flask import current_app, make_response
-from weasyprint import HTML, CSS
-from weasyprint.text.fonts import FontConfiguration
-
+import os
 
 def get_logo_base64():
-    """Robust logo loader with multiple fallback locations"""
-    search_paths = [
-        os.path.join(current_app.static_folder, 'images', 'gov_logo.png'),
-        os.path.join(current_app.root_path, 'static', 'images', 'gov_logo.png'),
-        os.path.join('app', 'static', 'images', 'gov_logo.png'),
-        os.path.join('backend', 'static', 'images', 'gov_logo.png')
-    ]
-    
-    for path in search_paths:
-        try:
-            if os.path.exists(path):
-                with open(path, 'rb') as f:
-                    return f"data:image/png;base64,{base64.b64encode(f.read()).decode('utf-8')}"
-        except Exception as e:
-            current_app.logger.warning(f"Failed to load logo from {path}: {str(e)}")
-    
-    current_app.logger.error("Logo not found in any standard location")
-    return ""
+    from flask import current_app
+    import base64, os
+
+    # ✅ Absolute path to logo file
+    logo_path = os.path.join(current_app.root_path, 'static', 'images', 'gov_logo.png')
+
+    if not os.path.exists(logo_path):
+        print("❌ LOGO FILE NOT FOUND:", logo_path)
+        return ""
+
+    try:
+        with open(logo_path, 'rb') as logo_file:
+            encoded = base64.b64encode(logo_file.read()).decode('utf-8')
+        print("✅ LOGO ENCODED SUCCESSFULLY")
+        return f"data:image/png;base64,{encoded}"
+    except Exception as e:
+        print("❌ ERROR READING LOGO FILE:", e)
+        return ""
+
+
+
+
+import re  # Add this with your other imports at the top
+from email_validator import validate_email, EmailNotValidError
 
 staff_bp = Blueprint('staff', __name__, template_folder='templates')
 
@@ -505,65 +518,58 @@ def create_staff_application():
 
     return render_template('staff/create_application.html')
 
-@staff_bp.route('/application/print/<int:app_id>')
+@staff_bp.route('/application/download/<int:app_id>')
 @staff_required
-def print_application(app_id):
-    try:
-        # 1. Verify application belongs to current staff member
-        staff_id = session['staff_id']
-        with mysql.connection.cursor(MySQLdb.cursors.DictCursor) as cur:
-            # Fetch application with designation info
-            cur.execute("""
-                SELECT la.*, s.designation, s.leave_balance 
-                FROM leave_applications la
-                JOIN staff s ON la.staff_id = s.id
-                WHERE la.id = %s AND la.staff_id = %s
-            """, (app_id, staff_id))
-            application = cur.fetchone()
+def download_application_pdf(app_id):
+    from flask import current_app
 
-            if not application:
-                flash("Application not found or unauthorized", "danger")
-                return redirect(url_for('staff.staff_dashboard'))
+    cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
-            if application['status'] != 'approved':
-                flash("Only approved applications can be printed", "warning")
-                return redirect(url_for('staff.staff_dashboard'))
+    # Fetch application
+    cur.execute("""
+        SELECT * FROM leave_applications WHERE id = %s AND staff_id = %s
+    """, (app_id, session['staff_id']))
+    app = cur.fetchone()
 
-        # 2. Prepare template data
-        template_data = {
-            'app': application,
-            'logo_data': get_logo_base64() or ''
-        }
-
-        # 3. Determine which template to use based on designation
-        is_hod = 'HOD' in application['designation'] or 'Head' in application['designation']
-        template_name = 'admin/pdf_template_hod.html' if is_hod else 'admin/pdf_template_staff.html'
-
-        # 4. Verify template exists
-        full_template_path = os.path.join(current_app.template_folder, template_name)
-        if not os.path.exists(full_template_path):
-            current_app.logger.error(f"Template not found: {full_template_path}")
-            flash("Printing service is currently unavailable", "danger")
-            return redirect(url_for('staff.staff_dashboard'))
-
-        # 5. Generate PDF
-        pdf = HTML(
-            string=render_template(template_name, **template_data),
-            base_url=os.path.join(current_app.root_path, 'static')
-        ).write_pdf(
-            stylesheets=[CSS(string='@page { margin: 1.5cm; }')]
-        )
-
-        response = make_response(pdf)
-        response.headers['Content-Type'] = 'application/pdf'
-        response.headers['Content-Disposition'] = f'inline; filename=leave_application_{app_id}.pdf'
-        return response
-
-    except Exception as e:
-        current_app.logger.error(f"Print failed: {str(e)}", exc_info=True)
-        flash("Failed to generate printout. Please try again later.", "danger")
+    if not app:
+        flash("Application not found or unauthorized.", "danger")
         return redirect(url_for('staff.staff_dashboard'))
-    
+
+    if app['status'] != 'approved':
+        flash("You can only print approved leave applications.", "warning")
+        return redirect(url_for('staff.staff_dashboard'))
+
+    # Fetch leave balance
+    cur.execute("SELECT leave_balance FROM staff WHERE id = %s", (session['staff_id'],))
+    staff_info = cur.fetchone()
+    cur.close()
+
+    app['leave_balance'] = staff_info['leave_balance'] if staff_info else 'N/A'
+
+    # Template selection
+    template_name = 'admin/pdf_template_staff.html' if app.get('user_type') == 'Staff' else 'pdf_template_hod.html'
+
+    # Render HTML without full_logo_url
+    rendered = render_template(template_name, app=app)
+
+    # ✅ Use local filesystem path to resolve static file
+    pdf = HTML(string=rendered, base_url=current_app.root_path).write_pdf()
+
+    response = make_response(pdf)
+    response.headers['Content-Type'] = 'application/pdf'
+    response.headers['Content-Disposition'] = f'inline; filename=leave_application_{app_id}.pdf'
+    return response
+
+
+@staff_bp.route('/test-logo')
+def test_logo():
+    return f'''
+    <div style="text-align:center;">
+        <h2>Base64 Logo Preview</h2>
+        <img src="{get_logo_base64()}" alt="Logo" style="height:100px;">
+    </div>
+    '''
+
 @staff_bp.route('/logout')
 def staff_logout():
     session.clear()

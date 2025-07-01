@@ -1,6 +1,6 @@
 # app/__init__.py
 from flask import Flask
-from .routes import staff_bp  # Import directly from routes
+from app.staff.routes import staff_bp  # Import directly from routes
 from .routes import staff_bp
 
 def create_app():
