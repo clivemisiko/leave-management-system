@@ -1,25 +1,22 @@
 from flask import Blueprint, current_app, render_template, request, redirect, url_for, flash, session, make_response
-from werkzeug.security import generate_password_hash, check_password_hash
-from weasyprint import HTML, CSS
-from ..extensions import mysql  # ✅ use the correct extension import
+from werkzeug.security import check_password_hash
+from weasyprint import HTML
+from ..extensions import mysql
 import MySQLdb.cursors
 import os
 from functools import wraps
 from datetime import datetime
-#from ..services.notification_service import send_leave_notification
 import base64
-import os
-from flask import current_app, request
-
-def get_logo_base64():
-    logo_path = os.path.join(current_app.root_path, 'static', 'images', 'kenya_logo.png')  # Adjust path if different
-    with open(logo_path, 'rb') as f:
-        encoded = base64.b64encode(f.read()).decode('utf-8')
-    return f"data:image/png;base64,{encoded}"
 
 admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
 
-# Your routes will follow here...
+# --- Helpers ---
+
+def get_logo_base64():
+    logo_path = os.path.join(current_app.root_path, 'static', 'images', 'kenya_logo.png')
+    with open(logo_path, 'rb') as f:
+        encoded = base64.b64encode(f.read()).decode('utf-8')
+    return f"data:image/png;base64,{encoded}"
 
 def admin_required(f):
     @wraps(f)
@@ -30,15 +27,16 @@ def admin_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
+# --- Login/Logout ---
+
 @admin_bp.route('/login', methods=['GET', 'POST'])
 def admin_login():
-    session.clear() 
+    session.clear()
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
-
         try:
-            cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)  # Use DictCursor
+            cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
             cur.execute("SELECT * FROM admins WHERE username = %s", (username,))
             admin = cur.fetchone()
             cur.close()
@@ -47,18 +45,15 @@ def admin_login():
                 flash('Username not found', 'danger')
                 return render_template('admin/login.html')
 
-            # Access columns by name instead of index
             if check_password_hash(admin['password'], password):
                 session['admin_logged_in'] = True
                 session['admin_id'] = admin['id']
                 session['admin_username'] = admin['username']
-                return redirect(url_for('admin.admin_dashboard'))  # Fixed endpoint name
+                return redirect(url_for('admin.admin_dashboard'))
             else:
                 flash('Invalid password', 'danger')
-
         except Exception as e:
             flash(f'Login error: {str(e)}', 'danger')
-            # Consider logging the error: current_app.logger.error(str(e))
 
     return render_template('admin/login.html')
 
@@ -68,6 +63,38 @@ def admin_logout():
     session.clear()
     flash('You have been logged out', 'info')
     return redirect(url_for('admin.admin_login'))
+
+# --- View Staff Members ---
+
+@admin_bp.route('/staff-members')
+@admin_required
+def view_staff_members():
+    try:
+        cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+        cur.execute("SELECT * FROM staff")
+        staff_members = cur.fetchall()
+        return render_template('admin/view_staff.html', staff_list=staff_members)
+    except Exception as e:
+        flash(f'Error fetching staff: {e}', 'danger')
+        return redirect(url_for('admin.admin_dashboard'))
+
+# --- Delete Staff Member ---
+
+@admin_bp.route('/delete-staff/<int:staff_id>', methods=['POST'])
+@admin_required
+def delete_staff_user(staff_id):
+    try:
+        cur = mysql.connection.cursor()
+        cur.execute("DELETE FROM staff WHERE id = %s", (staff_id,))
+        mysql.connection.commit()
+        cur.close()
+        flash("Staff user deleted successfully.", "success")
+    except Exception as e:
+        flash(f"Error deleting staff user: {str(e)}", "danger")
+    return redirect(url_for('admin.view_staff_members'))
+
+# Other routes like dashboard, application CRUD, approve/reject, PDF generation continue below...
+
 
 
 @admin_bp.route('/application/new', methods=['GET', 'POST'])
@@ -168,8 +195,7 @@ def admin_dashboard(status_filter=None):
         la.created_at
     FROM leave_applications la
     LEFT JOIN staff s ON la.staff_id = s.id
-"""
-
+    """
 
     search = request.args.get('search', '').strip()
     status_filter = request.args.get('status', '').strip()
@@ -178,27 +204,40 @@ def admin_dashboard(status_filter=None):
     conditions = []
 
     if status_filter in ['approved', 'rejected', 'pending']:
-        conditions.append("status = %s")
+        conditions.append("la.status = %s")
         params.append(status_filter)
 
     if search:
         conditions.append("(COALESCE(s.username, la.name) LIKE %s OR COALESCE(s.pno, la.pno) LIKE %s)")
         params.extend([f"%{search}%", f"%{search}%"])
 
-
     if conditions:
-        query = base_query + " WHERE " + " AND ".join(conditions) + " ORDER BY created_at DESC"
+        query = base_query + " WHERE " + " AND ".join(conditions) + " ORDER BY la.created_at DESC"
     else:
-        query = base_query + " ORDER BY created_at DESC"
+        query = base_query + " ORDER BY la.created_at DESC"
 
-    # 🧠 Corrected this line: `cursor` -> `cur`
     cur.execute(query, tuple(params))
-
-    # ✅ cur is already a DictCursor, so rows will be dictionaries
     applications = cur.fetchall()
 
+    # ✅ Fetch staff list for the staff section
+    cur.execute("SELECT * FROM staff ORDER BY id DESC")
+    staff_list = cur.fetchall()
+
+    for staff in staff_list:
+        if staff.get('date_created') and isinstance(staff['date_created'], str):
+            try:
+                staff['date_created'] = datetime.strptime(staff['date_created'], '%Y-%m-%d %H:%M:%S')
+            except ValueError:
+                # Fallback in case time format is different
+                staff['date_created'] = None
+
     cur.close()
-    return render_template('admin/dashboard.html', applications=applications, current_filter=status_filter)
+    return render_template(
+        'admin/dashboard.html',
+        applications=applications,
+        staff_list=staff_list,
+        current_filter=status_filter
+    )
 
 @admin_bp.route('/application/edit/<int:id>', methods=['GET', 'POST'])
 @admin_required
@@ -449,22 +488,3 @@ def delete_staff(staff_id):
 
     return redirect(url_for('admin.admin_dashboard'))
 
-@admin_bp.route('/staff-users')
-def view_staff():
-    cur = mysql.connection.cursor()
-    cur.execute("SELECT * FROM staff")
-    staff_list = cur.fetchall()
-    cur.close()
-    return render_template('admin/view_staff.html', staff_list=staff_list)
-
-@admin_bp.route('/delete-staff/<int:staff_id>', methods=['POST'])
-def delete_staff_user(staff_id):
-    try:
-        cur = mysql.connection.cursor()
-        cur.execute("DELETE FROM staff WHERE id = %s", (staff_id,))
-        mysql.connection.commit()
-        cur.close()
-        flash("Staff user deleted successfully.", "success")
-    except Exception as e:
-        flash(f"Error deleting staff user: {str(e)}", "danger")
-    return redirect(url_for('admin.view_staff'))
