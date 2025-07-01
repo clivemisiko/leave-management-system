@@ -4,12 +4,13 @@ import os
 from flask_mail import Mail
 from .extensions import mysql  # ✅ Ensure you have extensions/mysql.py defining mysql = MySQL()
 from .extensions import mail
+from config import DevelopmentConfig 
 
 # ✅ Initialize mail
 mail = Mail()
 
 def create_app():
-    app = Flask(__name__, template_folder='../templates', static_folder='../static')
+    app = Flask(__name__, template_folder='templates', static_folder='static')
 
     # Secret key
     app.secret_key = os.urandom(24)
@@ -20,6 +21,8 @@ def create_app():
     app.config['MYSQL_USER'] = 'root'
     app.config['MYSQL_PASSWORD'] = 'WhgfFYqECFcIkbWgscJnEAtENSjpIyaD'
     app.config['MYSQL_DB'] = 'railway'
+
+    app.config.from_object('config.DevelopmentConfig')
 
 
     # ✅ Optional: SQLAlchemy URI (only if you're using SQLAlchemy anywhere)
@@ -88,6 +91,10 @@ def create_app():
     # ✅ Blueprints
     from .admin.routes import admin_bp
     from .staff.routes import staff_bp
+
+    from .test_routes import test_bp
+    app.register_blueprint(test_bp)
+
 
     app.register_blueprint(staff_bp, url_prefix='/staff')
     app.register_blueprint(admin_bp, url_prefix='/admin')

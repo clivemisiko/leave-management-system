@@ -1,7 +1,6 @@
 import os
 from dotenv import load_dotenv
 
-# 👇 Load environment variables from .env
 load_dotenv()
 
 class Config:
@@ -11,4 +10,9 @@ class Config:
     MYSQL_PASSWORD = os.getenv('MYSQL_PASSWORD', 'SCCOJeyUAanzmZTHprXobCKidCuPSflS')
     MYSQL_DB = os.getenv('MYSQL_DB', 'railway')
     MYSQL_PORT = int(os.getenv('MYSQL_PORT', 24117))
-    MYSQL_SSL_DISABLED = False 
+    MYSQL_SSL_DISABLED = False
+
+# Add this DevelopmentConfig class
+class DevelopmentConfig(Config):
+    DEBUG = True
+    TESTING = True

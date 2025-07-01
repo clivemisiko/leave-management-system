@@ -1,9 +1,9 @@
 from flask import Blueprint, render_template, request, redirect, url_for, current_app, flash, session
 from werkzeug.security import check_password_hash
 from werkzeug.security import generate_password_hash
-from app import mysql  # assuming mysql is initialized in app/__init__.py
+from ..import mysql  # assuming mysql is initialized in app/__init__.py
 from flask import render_template, session, redirect, url_for, flash
-from app import mysql
+from ..import mysql
 from functools import wraps
 from datetime import datetime, timedelta
 from functools import wraps
@@ -12,19 +12,20 @@ from datetime import datetime
 from flask import render_template, session
 import MySQLdb.cursors
 #from flask_wtf.csrf import CSRFProtect
-from app.extensions import mysql
+from ..extensions import mysql
 from flask import current_app
 from itsdangerous import URLSafeTimedSerializer
-from app.utils.email import send_reset_email
-from app.utils.auth import update_password
+from ..utils.email import send_reset_email
+from ..utils.auth import update_password
 from flask_mail import Message
-from app import mail
+from ..import mail
 import smtplib
 from flask import render_template, flash, redirect, url_for, session, make_response, request
 from weasyprint import HTML
 from weasyprint import CSS
 import base64
 import os
+from flask import current_app, request 
 
 def get_logo_base64():
     from flask import current_app
@@ -52,7 +53,7 @@ def get_logo_base64():
 import re  # Add this with your other imports at the top
 from email_validator import validate_email, EmailNotValidError
 
-staff_bp = Blueprint('staff', __name__, template_folder='templates')
+staff_bp = Blueprint('staff', __name__)
 
 # In your routes.py - must use same salt and secret key
 def get_serializer():
@@ -518,14 +519,11 @@ def create_staff_application():
 
     return render_template('staff/create_application.html')
 
-@staff_bp.route('/application/download/<int:app_id>')
+@staff_bp.route('/application/print/<int:app_id>')
 @staff_required
-def download_application_pdf(app_id):
-    from flask import current_app
-
+def print_application(app_id):
     cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
-    # Fetch application
     cur.execute("""
         SELECT * FROM leave_applications WHERE id = %s AND staff_id = %s
     """, (app_id, session['staff_id']))
@@ -539,21 +537,18 @@ def download_application_pdf(app_id):
         flash("You can only print approved leave applications.", "warning")
         return redirect(url_for('staff.staff_dashboard'))
 
-    # Fetch leave balance
     cur.execute("SELECT leave_balance FROM staff WHERE id = %s", (session['staff_id'],))
     staff_info = cur.fetchone()
     cur.close()
 
     app['leave_balance'] = staff_info['leave_balance'] if staff_info else 'N/A'
 
-    # Template selection
-    template_name = 'admin/pdf_template_staff.html' if app.get('user_type') == 'Staff' else 'pdf_template_hod.html'
+    # ✅ Select correct PDF template
+    template_name = 'admin/pdf_template_staff.html' if app.get('user_type') == 'Staff' else 'admin/pdf_template_hod.html'
 
-    # Render HTML without full_logo_url
+    # ✅ Render PDF with full base_url so logo resolves
     rendered = render_template(template_name, app=app)
-
-    # ✅ Use local filesystem path to resolve static file
-    pdf = HTML(string=rendered, base_url=current_app.root_path).write_pdf()
+    pdf = HTML(string=rendered, base_url=request.url_root).write_pdf()
 
     response = make_response(pdf)
     response.headers['Content-Type'] = 'application/pdf'

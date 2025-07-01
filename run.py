@@ -1,6 +1,8 @@
 from dotenv import load_dotenv
 load_dotenv()
-
+import sys
+from pathlib import Path
+sys.path.append(str(Path(__file__).parent))
 from flask import redirect, url_for, session
 from backend.app import create_app
 from backend.app.extensions import mysql  # ✅ Add this line

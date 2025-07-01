@@ -1,7 +1,7 @@
 from flask import Blueprint, current_app, render_template, request, redirect, url_for, flash, session, make_response
 from werkzeug.security import generate_password_hash, check_password_hash
 from weasyprint import HTML, CSS
-from app.extensions import mysql  # ✅ use the correct extension import
+from ..extensions import mysql  # ✅ use the correct extension import
 import MySQLdb.cursors
 import os
 from functools import wraps
@@ -9,6 +9,7 @@ from datetime import datetime
 #from ..services.notification_service import send_leave_notification
 import base64
 import os
+from flask import current_app, request
 
 def get_logo_base64():
     logo_path = os.path.join(current_app.root_path, 'static', 'images', 'gov_logo.png')  # Adjust path if different
@@ -374,8 +375,6 @@ def reject_application(id):
 @admin_bp.route('/application/print/<int:id>')
 @admin_required
 def print_application(id):
-    from flask import current_app
-
     cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     cur.execute("""
         SELECT la.*,
@@ -402,7 +401,6 @@ def print_application(id):
         flash('Only approved applications can be printed.', 'warning')
         return redirect(url_for('admin.admin_dashboard'))
 
-    # Convert date strings to datetime objects
     for field in ('start_date', 'end_date', 'last_leave_start', 'last_leave_end', 'created_at'):
         val = application.get(field)
         if isinstance(val, str):
@@ -411,18 +409,16 @@ def print_application(id):
             except ValueError:
                 application[field] = None
 
-    # Choose template
     template = 'admin/pdf_template_hod.html' if application['is_hod'] else 'admin/pdf_template_staff.html'
 
-    # Render HTML without full_logo_url
+    # ✅ Render with request.url_root so logo loads
     rendered = render_template(template, app=application)
-
-    # ✅ Use local path for static image resolution
-    pdf = HTML(string=rendered, base_url=current_app.root_path).write_pdf()
+    pdf = HTML(string=rendered, base_url=request.url_root).write_pdf()
 
     response = make_response(pdf)
     response.headers['Content-Type'] = 'application/pdf'
     response.headers['Content-Disposition'] = f'inline; filename=leave_application_{id}.pdf'
     return response
+
 
 
