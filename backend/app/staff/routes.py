@@ -220,6 +220,7 @@ def register():
 
 @staff_bp.route('/login', methods=['GET', 'POST'])
 def staff_login():
+    session.clear() 
     if request.method == 'POST':
         login_input = request.form['login_input'].strip()  # Can be email or pno
         password = request.form['password']

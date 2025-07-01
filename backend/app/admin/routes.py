@@ -32,6 +32,7 @@ def admin_required(f):
 
 @admin_bp.route('/login', methods=['GET', 'POST'])
 def admin_login():
+    session.clear() 
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']

@@ -11,12 +11,9 @@ app = create_app()
 
 @app.route('/')
 def index():
-    if session.get('admin_logged_in'):
-        return redirect(url_for('admin.admin_dashboard'))
-    elif session.get('staff_logged_in'):
-        return redirect(url_for('staff.staff_dashboard'))
-    else:
-        return redirect(url_for('staff.staff_login'))
+    session.clear()  # ✅ Clears any logged-in session
+    return redirect(url_for('staff.staff_login'))
+
 
 @app.route('/db-check')
 def db_check():
