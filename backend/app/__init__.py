@@ -5,6 +5,8 @@ from flask_mail import Mail
 from .extensions import mysql  # ✅ Ensure you have extensions/mysql.py defining mysql = MySQL()
 from .extensions import mail
 from config import DevelopmentConfig 
+from flask import render_template
+
 
 # ✅ Initialize mail
 mail = Mail()
@@ -116,9 +118,10 @@ def create_app():
         response.headers['Connection'] = 'close'
         return response
 
+
     @app.route('/')
     def home():
-        return 'Leave Management System is Running. Go to /admin or /staff'
+        return render_template('landing.html')  # Ensure this file exists
 
     from .setup_db_routes import setup_db_bp
     app.register_blueprint(setup_db_bp)

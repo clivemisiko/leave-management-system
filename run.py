@@ -3,7 +3,7 @@ load_dotenv()
 import sys
 from pathlib import Path
 sys.path.append(str(Path(__file__).parent))
-from flask import redirect, url_for, session
+from flask import redirect, url_for, session, render_template
 from backend.app import create_app
 from backend.app.extensions import mysql  # ✅ Add this line
 
@@ -11,8 +11,8 @@ app = create_app()
 
 @app.route('/')
 def index():
-    session.clear()  # ✅ Clears any logged-in session
-    return redirect(url_for('staff.staff_login'))
+    session.clear()
+    return render_template('landing.html')
 
 
 @app.route('/db-check')
