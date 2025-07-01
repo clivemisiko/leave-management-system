@@ -349,7 +349,7 @@ def reset_password(token):
             """SELECT id FROM staff 
             WHERE email = %s 
             AND reset_token = %s 
-            AND reset_token_expires > UTC_TIMESTAMP()""",
+            AND token_expiry> UTC_TIMESTAMP()""",
             (email, token)
         )
         user = cur.fetchone()
@@ -377,7 +377,7 @@ def reset_password(token):
                 """UPDATE staff 
                 SET password = %s, 
                     reset_token = NULL, 
-                    reset_token_expires = NULL 
+                    token_expiry = NULL 
                 WHERE email = %s""",
                 (hashed_password, email)
             )

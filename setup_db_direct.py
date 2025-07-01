@@ -4,7 +4,7 @@ try:
     connection = pymysql.connect(
         host='interchange.proxy.rlwy.net',
         user='root',
-        password='SCCOJeyUAanzmZTHprXobCKidCuPSflS',
+        password='mevtivlyusqfhxst',
         database='railway',
         port=24117,
         connect_timeout=10,
