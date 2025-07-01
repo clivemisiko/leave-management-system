@@ -458,7 +458,7 @@ def view_staff():
     return render_template('admin/view_staff.html', staff_list=staff_list)
 
 @admin_bp.route('/delete-staff/<int:staff_id>', methods=['POST'])
-def delete_staff(staff_id):
+def delete_staff_user(staff_id):
     try:
         cur = mysql.connection.cursor()
         cur.execute("DELETE FROM staff WHERE id = %s", (staff_id,))
