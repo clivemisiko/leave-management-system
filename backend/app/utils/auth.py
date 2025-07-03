@@ -1,18 +1,25 @@
 from werkzeug.security import generate_password_hash
-from flask import current_app
-import MySQLdb.cursors
+from backend.app.extensions import get_mysql_connection  # ✅ You need this
+# Do NOT use `MySQLdb` if you're using PyMySQL + TiDB
 
 def update_password(pno, new_password):
-    hashed_pw = generate_password_hash(new_password)
-    cur = current_app.mysql.connection.cursor()
     try:
+        conn = get_mysql_connection()
+        cur = conn.cursor()
+        hashed_pw = generate_password_hash(new_password)
+
         cur.execute(
             "UPDATE staff SET password = %s WHERE pno = %s",
             (hashed_pw, pno)
         )
-        current_app.mysql.connection.commit()
+        conn.commit()
+        return True
+
     except Exception as e:
-        current_app.mysql.connection.rollback()
+        if 'conn' in locals():
+            conn.rollback()
         raise e
+
     finally:
-        cur.close()
+        if 'cur' in locals():
+            cur.close()

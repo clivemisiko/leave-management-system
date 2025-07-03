@@ -1,37 +1,21 @@
-from flask import Blueprint, render_template, request, redirect, url_for, current_app, flash, session
-from werkzeug.security import check_password_hash
-from werkzeug.security import generate_password_hash
-from ..import mysql  # assuming mysql is initialized in app/__init__.py
-from flask import render_template, session, redirect, url_for, flash
-from ..import mysql
+from flask import Blueprint, render_template, request, redirect, url_for, current_app, flash, session, make_response
+from werkzeug.security import check_password_hash, generate_password_hash
+from backend.app.extensions import get_mysql_connection, mail
 from functools import wraps
 from datetime import datetime, timedelta
-from functools import wraps
-from flask import session, redirect, url_for, flash
-from datetime import datetime
-from flask import render_template, session
-import MySQLdb.cursors
-#from flask_wtf.csrf import CSRFProtect
-from ..extensions import mysql
-from flask import current_app
 from itsdangerous import URLSafeTimedSerializer
 from ..utils.email import send_reset_email
 from ..utils.auth import update_password
 from flask_mail import Message
-from ..import mail
+from weasyprint import HTML, CSS
+from email_validator import validate_email, EmailNotValidError
 import smtplib
-from flask import render_template, flash, redirect, url_for, session, make_response, request
-from weasyprint import HTML
-from weasyprint import CSS
 import base64
 import os
-from flask import current_app, request 
+import re
 
+# ✅ Function to encode logo to base64
 def get_logo_base64():
-    from flask import current_app
-    import base64, os
-
-    # ✅ Absolute path to logo file
     logo_path = os.path.join(current_app.root_path, 'static', 'images', 'kenya_logo.png')
 
     if not os.path.exists(logo_path):
@@ -47,11 +31,7 @@ def get_logo_base64():
         print("❌ ERROR READING LOGO FILE:", e)
         return ""
 
-
-
-
-import re  # Add this with your other imports at the top
-from email_validator import validate_email, EmailNotValidError
+# Now you can safely use get_mysql_connection() anywhere below in this module.
 
 staff_bp = Blueprint('staff', __name__)
 
@@ -83,7 +63,7 @@ def staff_dashboard():
     from datetime import datetime, date
 
     staff_id = session.get('staff_id')
-    cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    cur = conn = get_mysql_connection(); cur = conn.cursor()
 
     # Fetch current leave balance from staff table (don't calculate here)
     cur.execute("SELECT leave_balance FROM staff WHERE id = %s", (staff_id,))
@@ -186,8 +166,9 @@ def register():
         # Check if user already exists
         cur = None
         try:
-            cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-            
+            conn = get_mysql_connection()
+            cur = conn.cursor()
+
             # Check if pno or email already exists
             cur.execute("SELECT id FROM staff WHERE pno = %s OR email = %s", (pno, email))
             if cur.fetchone():
@@ -200,17 +181,25 @@ def register():
                 "INSERT INTO staff (pno, username, email, password) VALUES (%s, %s, %s, %s)",
                 (pno, username, email, hashed_password)
             )
-            mysql.connection.commit()
+            conn = get_mysql_connection()
+
+            cur = conn.cursor()
+
+            conn.commit()
+            conn.rollback()
+
+
             
             flash('Registration successful! Please login.', 'success')
             return redirect(url_for('staff.staff_login'))
             
-        except Exception as e:
-            mysql.connection.rollback()
-            current_app.logger.error(f"Registration error: {str(e)}")
-            flash('Registration failed. Please try again.', 'danger')
+        except Exception as registration_error:
+            if 'conn' in locals():
+                conn.rollback()
+            current_app.logger.error(f"Registration error: {registration_error}")
+            flash(f"Registration failed: {registration_error}", 'danger')
             return redirect(url_for('staff.register'))
-            
+
         finally:
             if cur:
                 cur.close()
@@ -225,7 +214,8 @@ def staff_login():
         login_input = request.form['login_input'].strip()  # Can be email or pno
         password = request.form['password']
         
-        cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+        cur = conn = get_mysql_connection()
+        cur = conn.cursor()
         try:
             # Check if input is email or pno
             is_email = '@' in login_input
@@ -277,7 +267,7 @@ def forgot_password():
         
         cur = None
         try:
-            cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+            cur = conn = get_mysql_connection(); cur = conn.cursor()
             cur.execute("SELECT id, username FROM staff WHERE email = %s", (email,))
             staff = cur.fetchone()
             
@@ -299,8 +289,15 @@ def forgot_password():
                     WHERE email = %s""",
                     (token, expires_at, email)
                 )
-                mysql.connection.commit()
-                
+                conn = get_mysql_connection()
+
+                cur = conn.cursor()
+
+                conn.commit()
+                conn.rollback()
+
+
+                                
                 # Send email with reset URL
                 msg = Message(
                     'Password Reset Request',
@@ -313,7 +310,7 @@ def forgot_password():
             return redirect(url_for('staff.staff_login'))
                 
         except Exception as e:
-            mysql.connection.rollback()
+            conn.rollback()
             current_app.logger.error(f"Error sending reset email: {str(e)}")
             flash('Failed to send reset email. Please try again.', 'danger')
             return redirect(url_for('staff.forgot_password'))
@@ -342,7 +339,7 @@ def reset_password(token):
             flash('Invalid or expired reset link', 'danger')
             return redirect(url_for('staff.forgot_password'))
 
-        cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+        cur = conn = get_mysql_connection(); cur = conn.cursor()
         
         # Verify token against database
         cur.execute(
@@ -381,7 +378,14 @@ def reset_password(token):
                 WHERE email = %s""",
                 (hashed_password, email)
             )
-            mysql.connection.commit()
+            conn = get_mysql_connection()
+
+            cur = conn.cursor()
+
+            conn.commit()
+            conn.rollback()
+
+
             flash('Your password has been updated successfully! Please login.', 'success')
             return redirect(url_for('staff.staff_login'))
         
@@ -399,7 +403,11 @@ def reset_password(token):
 @staff_bp.route('/application/details/<int:app_id>')
 @staff_required
 def application_details(app_id):
-    cur = mysql.connection.cursor()
+    conn = get_mysql_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM leave_applications")
+    data = cur.fetchall()
+
     cur.execute("""
         SELECT * FROM leave_applications 
         WHERE id = %s AND pno = %s
@@ -469,7 +477,7 @@ def create_staff_application():
 
             
             # Open a cursor to fetch staff leave balance
-            cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+            conn = get_mysql_connection(); cur = conn.cursor()
             cur.execute("SELECT leave_balance FROM staff WHERE id = %s", (form_data['staff_id'],))
             staff_row = cur.fetchone()
 
@@ -479,7 +487,13 @@ def create_staff_application():
 
             leave_balance = staff_row['leave_balance']
             # Save to DB
-            cur = mysql.connection.cursor()
+
+
+            conn = get_mysql_connection()
+            cur = conn.cursor()
+            cur.execute("SELECT * FROM leave_applications")
+            data = cur.fetchall()
+
             cur.execute("""
     INSERT INTO leave_applications 
     (name, pno, designation, leave_days, start_date, end_date, contact_address, contact_tel,
@@ -505,12 +519,19 @@ def create_staff_application():
     leave_balance  # ✅ Newly added
 ))
 
-            mysql.connection.commit()
+            conn = get_mysql_connection()
+
+            cur = conn.cursor()
+
+            conn.commit()
+            conn.rollback()
+
+
             flash('Leave application submitted successfully.', 'success')
             return redirect(url_for('staff.staff_dashboard'))
 
         except Exception as e:
-            mysql.connection.rollback()
+            conn.rollback()
             flash(f'Error: {str(e)}', 'danger')
             return redirect(url_for('staff.create_application'))
 
@@ -523,7 +544,7 @@ def create_staff_application():
 @staff_bp.route('/application/print/<int:app_id>')
 @staff_required
 def print_application(app_id):
-    cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    cur = conn = get_mysql_connection(); cur = conn.cursor()
 
     cur.execute("""
         SELECT * FROM leave_applications WHERE id = %s AND staff_id = %s
@@ -577,7 +598,7 @@ def staff_logout():
 @staff_required
 def cancel_application(id):
     staff_id = session.get('staff_id')
-    cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    cur = conn = get_mysql_connection(); cur = conn.cursor()
     try:
         # Fetch application
         cur.execute("""
@@ -605,11 +626,18 @@ def cancel_application(id):
             WHERE id = %s
         """, (id,))
 
-        mysql.connection.commit()
+        conn = get_mysql_connection()
+
+        cur = conn.cursor()
+
+        conn.commit()
+        conn.rollback()
+
+
         flash('Application cancelled and balance restored.', 'success')
 
     except Exception as e:
-        mysql.connection.rollback()
+        conn.rollback()
         flash(f'Error cancelling application: {str(e)}', 'danger')
 
     finally:

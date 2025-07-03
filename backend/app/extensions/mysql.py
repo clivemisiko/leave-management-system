@@ -1,17 +1,8 @@
-# backend/app/extensions.py
-
 import pymysql
 import os
 from dotenv import load_dotenv
-from flask_mail import Mail
-
-# ✅ Load environment variables
 load_dotenv()
 
-# ✅ Flask-Mail instance
-mail = Mail()
-
-# ✅ Function to get a MySQL connection (works with TiDB)
 def get_mysql_connection():
     return pymysql.connect(
         host=os.getenv("MYSQL_HOST"),

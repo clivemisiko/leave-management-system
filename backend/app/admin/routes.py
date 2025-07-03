@@ -1,8 +1,7 @@
 from flask import Blueprint, current_app, render_template, request, redirect, url_for, flash, session, make_response
 from werkzeug.security import check_password_hash
 from weasyprint import HTML
-from ..extensions import mysql
-import MySQLdb.cursors
+from backend.app.extensions import get_mysql_connection, mail
 import os
 from functools import wraps
 from datetime import datetime
@@ -36,8 +35,9 @@ def admin_login():
         username = request.form['username']
         password = request.form['password']
         try:
-            cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-            cur.execute("SELECT * FROM admins WHERE username = %s", (username,))
+            conn = get_mysql_connection()
+            cur = conn.cursor()
+            cur.execute("SELECT * FROM admin WHERE username = %s", (username,))
             admin = cur.fetchone()
             cur.close()
 
@@ -70,7 +70,8 @@ def admin_logout():
 @admin_required
 def view_staff_members():
     try:
-        cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+        conn = get_mysql_connection()
+        cur = conn.cursor()
         cur.execute("SELECT * FROM staff")
         staff_members = cur.fetchall()
         return render_template('admin/view_staff.html', staff_list=staff_members)
@@ -84,9 +85,20 @@ def view_staff_members():
 @admin_required
 def delete_staff_user(staff_id):
     try:
-        cur = mysql.connection.cursor()
+        conn = get_mysql_connection()
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM leave_applications")
+        data = cur.fetchall()
+
         cur.execute("DELETE FROM staff WHERE id = %s", (staff_id,))
-        mysql.connection.commit()
+        conn = get_mysql_connection()
+
+        cur = conn.cursor()
+
+        conn.commit()
+        conn.rollback()
+
+
         cur.close()
         flash("Staff user deleted successfully.", "success")
     except Exception as e:
@@ -143,7 +155,13 @@ def create_application():
                 flash('Payment address is required when not continuing bank payments', 'danger')
                 return redirect(url_for('admin.create_application'))
 
-            cur = mysql.connection.cursor()
+
+
+            conn = get_mysql_connection()
+            cur = conn.cursor()
+            cur.execute("SELECT * FROM leave_applications")
+            data = cur.fetchall()
+
             cur.execute("""
                 INSERT INTO leave_applications 
                 (name, pno, designation, leave_days, start_date, end_date, 
@@ -151,7 +169,14 @@ def create_application():
                  delegate, outside_country, leave_balance, last_leave_start, last_leave_end, leave_type)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """, tuple(form_data.values()))
-            mysql.connection.commit()
+            conn = get_mysql_connection()
+
+            cur = conn.cursor()
+
+            conn.commit()
+            conn.rollback()
+
+
             flash('Application created successfully', 'success')
             return redirect(url_for('admin.admin_dashboard'))
 
@@ -159,7 +184,11 @@ def create_application():
             flash(f'Invalid data format: {str(e)}', 'danger')
             return redirect(url_for('admin.create_application'))
         except Exception as e:
-            mysql.connection.rollback()
+            conn = get_mysql_connection()
+            cur = conn.cursor()
+            conn.commit()
+            conn.rollback()
+
             flash(f'Error creating application: {str(e)}', 'danger')
             return redirect(url_for('admin.create_application'))
         finally:
@@ -175,7 +204,10 @@ def admin_dashboard(status_filter=None):
     if request.referrer and url_for('admin.admin_login') in request.referrer:
         flash('Login successful', 'success')
 
-    cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    conn = get_mysql_connection()
+    cur = conn.cursor()
+    conn.commit()
+    conn.rollback()
 
     base_query = """
     SELECT 
@@ -242,7 +274,10 @@ def admin_dashboard(status_filter=None):
 @admin_bp.route('/application/edit/<int:id>', methods=['GET', 'POST'])
 @admin_required
 def edit_application(id):
-    cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    conn = get_mysql_connection()
+    cur = conn.cursor()
+    conn.commit()
+    conn.rollback()
 
     if request.method == 'POST':
         # Update the leave application with the submitted form data
@@ -270,7 +305,14 @@ def edit_application(id):
             request.form['status'],
             id
         ))
-        mysql.connection.commit()
+        conn = get_mysql_connection()
+
+        cur = conn.cursor()
+
+        conn.commit()
+        conn.rollback()
+
+
         cur.close()
 
         flash('Application updated successfully', 'success')
@@ -308,13 +350,27 @@ WHERE la.id = %s
 @admin_required
 def delete_application(id):
     try:
-        cur = mysql.connection.cursor()
+        conn = get_mysql_connection()
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM leave_applications")
+        data = cur.fetchall()
+
         cur.execute("DELETE FROM leave_applications WHERE id = %s", (id,))
-        mysql.connection.commit()
+        conn = get_mysql_connection()
+
+        cur = conn.cursor()
+
+        conn.commit()
+        conn.rollback()
+
+
         cur.close()
         flash('Application deleted successfully', 'success')
     except Exception as e:
-        mysql.connection.rollback()
+        conn = get_mysql_connection()
+        cur = conn.cursor()
+        conn.commit()
+        conn.rollback()
         flash('Failed to delete application', 'danger')
         # Log the error: current_app.logger.error(f"Delete error: {str(e)}")
     return redirect(url_for('admin.admin_dashboard'))
@@ -324,8 +380,10 @@ def delete_application(id):
 def approve_application(app_id):
     
     try:
-        cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-        
+        conn = get_mysql_connection()
+        cur = conn.cursor()
+        conn.commit()
+                
         # 1. Get application details
         cur.execute("""
             SELECT staff_id, leave_days, status 
@@ -375,11 +433,22 @@ def approve_application(app_id):
             WHERE id = %s
         """, (session['admin_username'], app_id))
         
-        mysql.connection.commit()
+        conn = get_mysql_connection()
+
+        cur = conn.cursor()
+
+        conn.commit()
+        conn.rollback()
+
+
         flash('Application approved', 'success')
         
     except Exception as e:
-        mysql.connection.rollback()
+        conn = get_mysql_connection()
+        cur = conn.cursor()
+        conn.commit()
+        conn.rollback()
+
         flash(f'Approval failed: {str(e)}', 'danger')
         if current_app:  # Safety check
             current_app.logger.error(f"Approval error: {str(e)}")
@@ -395,18 +464,31 @@ def approve_application(app_id):
 @admin_required
 def reject_application(id):
     try:
-        cur = mysql.connection.cursor()
+        conn = get_mysql_connection()
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM leave_applications")
+        data = cur.fetchall()
+
         cur.execute("""
-            UPDATE leave_applications SET 
+                UPDATE leave_applications SET 
             status = 'rejected',
             rejected_by = %s,
             rejected_at = %s
             WHERE id = %s AND status = 'pending'
         """, (session['admin_username'], datetime.now(), id))
-        mysql.connection.commit()
+        conn = get_mysql_connection()
+
+        cur = conn.cursor()
+
+        conn.commit()
+        conn.rollback()
+
+
         flash('Application rejected', 'warning')
     except Exception as e:
-        mysql.connection.rollback()
+        conn = get_mysql_connection()
+        cur = conn.cursor()
+        conn.commit()
         flash(f'Error rejecting application: {str(e)}', 'danger')
     finally:
         cur.close()
@@ -415,7 +497,10 @@ def reject_application(id):
 @admin_bp.route('/application/print/<int:id>')
 @admin_required
 def print_application(id):
-    cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    conn = get_mysql_connection()
+    cur = conn.cursor()
+    conn.commit()
+    conn.rollback()
     cur.execute("""
         SELECT la.*,
                COALESCE(s.username, la.name) AS name,
@@ -464,7 +549,10 @@ def print_application(id):
 @admin_bp.route('/staff/delete/<int:staff_id>', methods=['POST'])
 @admin_required
 def delete_staff(staff_id):
-    cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    conn = get_mysql_connection()
+    cur = conn.cursor()
+    conn.commit()
+    conn.rollback()
     try:
         # Fetch staff info to confirm existence
         cur.execute("SELECT * FROM staff WHERE id = %s", (staff_id,))
@@ -476,11 +564,18 @@ def delete_staff(staff_id):
 
         # Delete the staff record (leave_applications will be deleted automatically)
         cur.execute("DELETE FROM staff WHERE id = %s", (staff_id,))
-        mysql.connection.commit()
+        conn = get_mysql_connection()
 
+        cur = conn.cursor()
+
+        conn.commit()
+        conn.rollback()
         flash(f"Staff {staff['username']} and their applications deleted successfully.", "success")
     except Exception as e:
-        mysql.connection.rollback()
+        conn = get_mysql_connection()
+        cur = conn.cursor()
+        conn.commit()
+        conn.rollback()
         current_app.logger.error(f"Error deleting staff: {str(e)}")
         flash("Error deleting staff member.", "danger")
     finally:

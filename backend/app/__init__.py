@@ -1,68 +1,37 @@
-from flask import Flask
+from flask import Flask, render_template
 from datetime import datetime
 import os
+from dotenv import load_dotenv
 from flask_mail import Mail
-from .extensions import mysql  # ✅ Ensure you have extensions/mysql.py defining mysql = MySQL()
-from .extensions import mail
-from config import DevelopmentConfig 
-from flask import render_template
+from backend.app.extensions import get_mysql_connection, mail  # ✅ Correct import here
 
-
-# ✅ Initialize mail
-mail = Mail()
+load_dotenv()
 
 def create_app():
     app = Flask(__name__, template_folder='templates', static_folder='static')
-
-    # Secret key
     app.secret_key = os.urandom(24)
 
-    # ✅ Railway MySQL configuration
-    app.config['MYSQL_HOST'] = 'shuttle.proxy.rlwy.net'
-    app.config['MYSQL_PORT'] = 49114
-    app.config['MYSQL_USER'] = 'root'
-    app.config['MYSQL_PASSWORD'] = 'WhgfFYqECFcIkbWgscJnEAtENSjpIyaD'
-    app.config['MYSQL_DB'] = 'railway'
-
-    app.config.from_object('config.DevelopmentConfig')
-
-
-    # ✅ Optional: SQLAlchemy URI (only if you're using SQLAlchemy anywhere)
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql://root:WhgfFYqECFcIkbWgscJnEAtENSjpIyaD@shuttle.proxy.rlwy.net:49114/railway'
-
-    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-
-    # CSRF settings (if used)
-    app.config['WTF_CSRF_ENABLED'] = False
-    app.config['WTF_CSRF_METHODS'] = []
-    app.config['WTF_CSRF_TIME_LIMIT'] = None
-
-    # Email configuration
+    # Mail Config
     app.config['MAIL_SERVER'] = 'smtp.gmail.com'
     app.config['MAIL_PORT'] = 587
     app.config['MAIL_USE_TLS'] = True
-    app.config['MAIL_USE_SSL'] = False
     app.config['MAIL_USERNAME'] = 'clivebillzerean@gmail.com'
-    app.config['MAIL_PASSWORD'] = 'mevtivlyusqfhxst;'
+    app.config['MAIL_PASSWORD'] = 'mevtivlyusqfhxst;'  # NOTE: use environment variable for production
     app.config['MAIL_DEFAULT_SENDER'] = 'clivebillzereana@gmail.com'
-    app.config['SECURITY_PASSWORD_SALT'] = 'your-unique-salt-here'
-
-    # ✅ Initialize extensions
-    mysql.init_app(app)
     mail.init_app(app)
 
-    # ✅ Test database connection
+    # ✅ Test DB Connection (TiDB)
     with app.app_context():
         try:
-            conn = mysql.connection
+            conn = get_mysql_connection()
             cur = conn.cursor()
             cur.execute("SHOW TABLES")
-            print("✅ Successfully connected to Railway MySQL database")
-            print(f"Tables: {cur.fetchall()}")
+            print("✅ Connected to TiDB. Tables:", cur.fetchall())
+            cur.close()
         except Exception as e:
-            print(f"❌ Connection failed: {e}")
+            print("❌ TiDB Connection Error:", e)
 
-    # ✅ Template filters
+    # Template filters
     @app.template_filter('format_datetime')
     def format_datetime(value):
         if value is None:
@@ -90,42 +59,19 @@ def create_app():
         except:
             return str(value)
 
-    # ✅ Blueprints
+    # Routes and blueprints
     from .admin.routes import admin_bp
     from .staff.routes import staff_bp
-
     from .test_routes import test_bp
+    from .setup_db_routes import setup_db_bp
+
     app.register_blueprint(test_bp)
-
-
     app.register_blueprint(staff_bp, url_prefix='/staff')
     app.register_blueprint(admin_bp, url_prefix='/admin')
-
-    # ✅ Logging (for production)
-    if not app.debug:
-        import logging
-        from logging.handlers import RotatingFileHandler
-        file_handler = RotatingFileHandler('app.log', maxBytes=10240)
-        file_handler.setFormatter(logging.Formatter(
-            '%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'
-        ))
-        app.logger.addHandler(file_handler)
-        app.logger.setLevel(logging.INFO)
-
-    # ✅ Set headers after each request
-    @app.after_request
-    def after_request(response):
-        response.headers['Connection'] = 'close'
-        return response
-
+    app.register_blueprint(setup_db_bp)
 
     @app.route('/')
     def home():
-        return render_template('landing.html')  # Ensure this file exists
-
-    from .setup_db_routes import setup_db_bp
-    app.register_blueprint(setup_db_bp)
+        return render_template('landing.html')
 
     return app
-
-

@@ -1,6 +1,10 @@
 # setup_db.py
 from backend.app import create_app
-from backend.app.extensions import mysql
+conn = get_mysql_connection()
+
+from backend.app.extensions import get_mysql_connection
+
+mysql
 
 app = create_app()
 
