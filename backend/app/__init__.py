@@ -36,6 +36,11 @@ def create_app():
         except Exception as e:
             print("❌ TiDB Connection Error:", e)
 
+
+    @app.context_processor
+    def inject_now():
+        return {'now': datetime.utcnow()}
+    
     # Template filters
     @app.template_filter('format_datetime')
     def format_datetime(value):
@@ -80,9 +85,4 @@ def create_app():
     app.register_blueprint(admin_bp, url_prefix='/admin')
     app.register_blueprint(setup_db_bp)
     
-
-    @app.route('/')
-    def home():
-        return render_template('landing.html')
-
     return app

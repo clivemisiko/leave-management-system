@@ -1,0 +1,178 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<style>
+    .screenshot-card {
+        cursor: pointer;
+        transition: transform 0.2s;
+    }
+    .screenshot-card:hover {
+        transform: scale(1.02);
+    }
+    .modal-screenshot {
+        max-height: 80vh;
+    }
+</style>
+
+<div class="container my-5">
+    <div class="row">
+        <div class="col-lg-10 mx-auto">
+            <div class="card shadow-sm">
+                <div class="card-header" style="background-color: #0066b3; color: white;">
+    <h3 class="mb-0"><i class="fas fa-file-contract me-2"></i> help_center</h3>
+</div>
+                <div class="card-body">
+                    <!-- Screenshot Guides Section -->
+                    <div class="mb-4">
+                        <h4 class="text-ict-blue border-bottom pb-2 mb-4">
+                            <i class="fas fa-images me-2"></i> Step-by-Step Visual Guides
+                        </h4>
+                        
+                        <!-- Guide 1 -->
+                        <div class="mb-5">
+                            <h5 class="text-ict-blue mb-3">1. How to Apply for Leave</h5>
+                            <div class="row g-3">
+                                {% for step in [1, 2] %}
+                                <div class="col-md-6">
+                                    <div class="card border-0 shadow-sm screenshot-card"
+                                         data-bs-toggle="modal" 
+                                         data-bs-target="#screenshotModal"
+                                         data-img="{{ url_for('static', filename='images/screenshots/apply-step' + step|string + '.jpg') }}"
+                                         data-title="Applying for Leave - Step {{ step }}">
+                                        <img src="{{ url_for('static', filename='images/screenshots/apply-step' + step|string + '.jpg') }}" 
+                                             class="card-img-top" 
+                                             alt="Apply Step {{ step }}">
+                                        <div class="card-body text-center bg-light">
+                                            <p class="mb-0 fw-bold">Step {{ step }}: {{ ['Login to system', 'Submit application'][step-1] }}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        <!-- Guide 2 -->
+                        <div class="mb-5">
+                            <h5 class="text-ict-blue mb-3">2. Checking Leave Balance</h5>
+                            <div class="row g-3">
+                                {% for step in [1, 2] %}
+                                <div class="col-md-6">
+                                    <div class="card border-0 shadow-sm screenshot-card"
+                                         data-bs-toggle="modal" 
+                                         data-bs-target="#screenshotModal"
+                                         data-img="{{ url_for('static', filename='images/screenshots/balance-step' + step|string + '.jpg') }}"
+                                         data-title="Checking Balance - Step {{ step }}">
+                                        <img src="{{ url_for('static', filename='images/screenshots/balance-step' + step|string + '.jpg') }}" 
+                                             class="card-img-top" 
+                                             alt="Balance Step {{ step }}">
+                                        <div class="card-body text-center bg-light">
+                                            <p class="mb-0 fw-bold">Step {{ step }}: {{ ['Go to Dashboard', 'View balance'][step-1] }}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        <!-- Guide 3 -->
+                        <div class="mb-5">
+                            <h5 class="text-ict-blue mb-3">3. Tracking Application Status</h5>
+                            <div class="row g-3">
+                                {% for step in [1, 2] %}
+                                <div class="col-md-6">
+                                    <div class="card border-0 shadow-sm screenshot-card"
+                                         data-bs-toggle="modal" 
+                                         data-bs-target="#screenshotModal"
+                                         data-img="{{ url_for('static', filename='images/screenshots/status-step' + step|string + '.jpg') }}"
+                                         data-title="Tracking Status - Step {{ step }}">
+                                        <img src="{{ url_for('static', filename='images/screenshots/status-step' + step|string + '.jpg') }}" 
+                                             class="card-img-top" 
+                                             alt="Status Step {{ step }}">
+                                        <div class="card-body text-center bg-light">
+                                            <p class="mb-0 fw-bold">Step {{ step }}: {{ ['My Applications', 'Check status'][step-1] }}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Need Help Section -->
+                    <div class="bg-ict-light-blue p-4 rounded">
+                        <h4 class="text-ict-blue mb-3">
+                            <i class="fas fa-hands-helping me-2"></i> Still Need Help?
+                        </h4>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="d-flex align-items-center mb-3">
+                                    <i class="fas fa-envelope fs-4 text-ict-blue me-3"></i>
+                                    <div>
+                                        <h5 class="mb-1">Email Support</h5>
+                                        <p class="mb-0">lms-support@micde.go.ke</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="d-flex align-items-center mb-3">
+                                    <i class="fas fa-phone-alt fs-4 text-ict-blue me-3"></i>
+                                    <div>
+                                        <h5 class="mb-1">Call Support</h5>
+                                        <p class="mb-0">+254 20 221 1000</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Screenshot Modal -->
+<div class="modal fade" id="screenshotModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header bg-ict-blue text-white">
+                <h5 class="modal-title" id="screenshotModalTitle"></h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center">
+                <img id="modalScreenshot" src="" class="img-fluid modal-screenshot" alt="">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-ict" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-1"></i> Close
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Screenshot modal handler
+    var screenshotModal = document.getElementById('screenshotModal');
+    screenshotModal.addEventListener('show.bs.modal', function(event) {
+        var button = event.relatedTarget;
+        var imgSrc = button.getAttribute('data-img');
+        var title = button.getAttribute('data-title');
+        
+        document.getElementById('modalScreenshot').src = imgSrc;
+        document.getElementById('screenshotModalTitle').textContent = title;
+    });
+});
+</script>
+{% endblock %}
+
+<!-- static/
+  images/
+    screenshots/
+      apply-step1.jpg
+      apply-step2.jpg
+      balance-step1.jpg
+      balance-step2.jpg
+      status-step1.jpg
+      status-step2.jpg
+      -->

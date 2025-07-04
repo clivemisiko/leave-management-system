@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card shadow-sm">
+                <div class="card-header" style="background-color: #0066b3; color: white;">
+    <h3 class="mb-0"><i class="fas fa-file-contract me-2"></i> UPCOMING KENYA PUBLIC HOLIDAYS </h3>
+</div>
+                <div class="card-body">
+                    <p class="text-muted mb-4">
+                        Below is the list of official public holidays in Kenya for the year 2025. 
+                        These dates are important when planning your leave applications.
+                    </p>
+                    
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Day</th>
+                                    <th>Holiday Name</th>
+                                    <th>Days From Today</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for holiday in holidays %}
+                                <tr {% if holiday['date_obj'] > now %}class="table-primary"{% endif %}>
+                                    <td>{{ holiday['date_obj'].strftime('%d %B %Y') }}</td>
+                                    <td>{{ holiday['weekday'] }}</td>
+                                    <td>{{ holiday['name'] }}</td>
+                                    <td>
+                                        {% if holiday['date_obj'] > now %}
+                                            in {{ (holiday['date_obj'] - now).days }} days
+                                        {% else %}
+                                            passed
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <div class="alert alert-info mt-4">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Note: These dates are based on the official government calendar and are subject to change.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

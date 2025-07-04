@@ -222,7 +222,16 @@
       font-size: 1.2rem;
       margin-right: 15px;
     }
-
+    .social-icon {
+      font-size: 24px;      /* Adjust size */
+      color: #0A66C2;       /* LinkedIn's brand blue */
+      margin: 0 10px;       /* Spacing around the icon */
+      transition: 0.3s;     /* Smooth hover effect */
+   }
+   .social-icon:hover {
+      color: #004182;       /* Darker blue on hover */
+      transform: scale(1.1); /* Slightly enlarge on hover */
+   }
     /* Responsive Adjustments */
     @media (max-width: 768px) {
       .hero-section {
@@ -283,7 +292,7 @@
       <div class="collapse navbar-collapse" id="navMenu">
         <ul class="navbar-nav ms-auto">
           <li class="nav-item">
-            <a class="nav-link active" href="landing.landing.html">Home</a>
+            <a class="nav-link active" href="{{url_for('main.home')}}">Home</a>
           </li>
           <li class="nav-item">
             <a class="nav-link" href="{{ url_for('staff.staff_login') }}">Staff Login</a>
@@ -347,17 +356,17 @@
           </div>
         </div>
         <div class="col-md-4">
-          <div class="card">
-            <div class="card-body text-center">
-              <div class="card-icon">
-                <i class="fas fa-file-alt"></i>
-              </div>
-              <h5>Forms & Templates</h5>
-              <p>Download leave application forms and other required templates</p>
-              <a href="#" class="btn btn-outline-ict mt-3">Download</a>
-            </div>
-          </div>
-        </div>
+  <div class="card">
+    <div class="card-body text-center">
+      <div class="card-icon">
+        <i class="fas fa-calendar-check"></i>
+      </div>
+      <h5>Public Holidays</h5>
+      <p>View upcoming national holidays to help plan your leave applications</p>
+      <a href="{{ url_for('main.public_holidays') }}" class="btn btn-outline-ict mt-3">View Holidays</a>
+    </div>
+  </div>
+</div>
         <div class="col-md-4">
           <div class="card">
             <div class="card-body text-center">
@@ -366,9 +375,7 @@
               </div>
               <h5>Help Center</h5>
               <p>Get assistance with using the leave management system</p>
-              <a href="#" class="btn btn-outline-ict mt-3">Get Help</a>
-            </div>
-          </div>
+    <a href="{{ url_for('main.help_center') }}" class="btn btn-outline-ict mt-3">Get Help</a>          </div>
         </div>
       </div>
     </div>
@@ -382,29 +389,40 @@
           <h5>About MICDE</h5>
           <p>The Ministry of Information, Communications and The Digital Economy is responsible for ICT policy, broadcasting, telecommunications, and digital economy matters in Kenya.</p>
           <div class="social-icons mt-3">
-            <a href="#"><i class="fab fa-twitter"></i></a>
-            <a href="#"><i class="fab fa-facebook"></i></a>
-            <a href="#"><i class="fab fa-linkedin"></i></a>
-            <a href="#"><i class="fab fa-youtube"></i></a>
-          </div>
+          <!-- Twitter (X) -->
+          <a href="https://x.com/MoICTKenya" target="_blank" rel="noopener noreferrer" aria-label="Twitter">
+            <i class="fab fa-twitter"></i>
+          </a>
+          
+          <!-- Facebook (corrected URL) -->
+          <a href="https://www.facebook.com/MoICTKE" target="_blank" rel="noopener noreferrer" aria-label="Facebook">
+            <i class="fab fa-facebook"></i>
+          </a>
+          
+          <!-- LinkedIn -->
+          <a href="https://www.linkedin.com/company/ministry-of-information-communications-and-the-digital-economy/" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            aria-label="LinkedIn">
+            <i class="fab fa-linkedin"></i>
+          </a>
+        </div>
         </div>
         <div class="col-md-2 mb-4">
           <h5>Quick Links</h5>
           <div class="footer-links">
-            <a href="#">Home</a>
-            <a href="#">Staff Login</a>
-            <a href="#">Admin Login</a>
-            <a href="#">Leave Policy</a>
-            <a href="#">Contact Us</a>
+            <a href="{{url_for('main.home')}}">Home</a>
+            <a href="{{url_for('staff.staff_login')}}">Staff Login</a>
+            <a href="{{url_for('admin.admin_login')}}">Admin Login</a>
+            <a href="{{url_for('main.leave_policy')}}">Leave Policy</a>
+            <a href="{{url_for('contact.contact')}}">Contact Us</a>
           </div>
         </div>
         <div class="col-md-3 mb-4">
           <h5>Resources</h5>
           <div class="footer-links">
-            <a href="#">Forms & Templates</a>
-            <a href="#">User Manual</a>
-            <a href="#">FAQs</a>
-            <a href="#">System Updates</a>
+            <a href="{{ url_for('main.public_holidays') }}">view Holidays</a>
+            <a href="{{ url_for('main.help_center') }}">User Manual</a>
           </div>
         </div>
         <div class="col-md-3 mb-4">
