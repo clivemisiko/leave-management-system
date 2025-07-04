@@ -8,7 +8,11 @@ from backend.app.extensions import get_mysql_connection, mail  # ✅ Correct imp
 load_dotenv()
 
 def create_app():
-    app = Flask(__name__, template_folder='templates', static_folder='static')
+    app = Flask(
+        __name__,
+        template_folder='templates',
+        static_folder=os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'static'))
+    ) 
     app.secret_key = os.urandom(24)
 
     # Mail Config
@@ -65,7 +69,9 @@ def create_app():
     from .staff.routes import staff_bp
     from .test_routes import test_bp
     from .setup_db_routes import setup_db_bp
+    from .contact import contact_bp
 
+    app.register_blueprint(contact_bp)
     app.register_blueprint(test_bp)
     app.register_blueprint(staff_bp, url_prefix='/staff')
     app.register_blueprint(admin_bp, url_prefix='/admin')
