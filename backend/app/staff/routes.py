@@ -256,70 +256,61 @@ from flask_mail import Message
 def forgot_password():
     if request.method == 'POST':
         email = request.form.get('email', '').strip().lower()
-        
+
         if not email:
             flash('Please enter your email address', 'danger')
             return redirect(url_for('staff.forgot_password'))
-        
+
         if not re.match(r"[^@]+@[^@]+\.[^@]+", email):
             flash('Please enter a valid email address', 'danger')
             return redirect(url_for('staff.forgot_password'))
-        
-        cur = None
+
         try:
-            cur = conn = get_mysql_connection(); cur = conn.cursor()
+            conn = get_mysql_connection()
+            cur = conn.cursor()
             cur.execute("SELECT id, username FROM staff WHERE email = %s", (email,))
             staff = cur.fetchone()
-            
-            # Always show success (security best practice)
+
+            # Always flash the same message for security
             flash('If an account exists with this email, a reset link has been sent.', 'success')
-            
+
             if staff:
-                # Generate token and reset URL
+                # Generate a secure token
                 serializer = get_serializer()
                 token = serializer.dumps(email)
-                reset_url = url_for('staff.reset_password', token=token, _external=True)  # Defined here
-                
-                # Store token in database
+                reset_url = url_for('staff.reset_password', token=token, _external=True)
                 expires_at = datetime.utcnow() + timedelta(hours=1)
-                cur.execute(
-                    """UPDATE staff 
-                    SET reset_token = %s, 
-                        reset_token_expires = %s 
-                    WHERE email = %s""",
-                    (token, expires_at, email)
-                )
-                conn = get_mysql_connection()
 
-                cur = conn.cursor()
-
+                # Save token and expiry to DB
+                cur.execute("""
+                    UPDATE staff 
+                    SET reset_token = %s, reset_token_expires = %s 
+                    WHERE email = %s
+                """, (token, expires_at, email))
                 conn.commit()
-                conn.rollback()
 
-
-                                
-                # Send email with reset URL
+                # Send reset email
                 msg = Message(
-                    'Password Reset Request',
+                    subject='Password Reset Request',
                     recipients=[email],
                     sender=current_app.config['MAIL_DEFAULT_SENDER'],
-                    body=f'Click to reset your password: {reset_url}'
+                    body=f"Hi,\n\nClick the link below to reset your password:\n{reset_url}\n\nIf you didn’t request this, ignore this email."
                 )
                 mail.send(msg)
-            
+
             return redirect(url_for('staff.staff_login'))
-                
+
         except Exception as e:
-            conn.rollback()
-            current_app.logger.error(f"Error sending reset email: {str(e)}")
+            current_app.logger.error(f"Forgot password error: {str(e)}")
             flash('Failed to send reset email. Please try again.', 'danger')
             return redirect(url_for('staff.forgot_password'))
+
         finally:
-            if cur:
+            if 'cur' in locals():
                 cur.close()
-    
-    # GET request - show the form
+
     return render_template('staff/forgot_password.html')
+
 
 @staff_bp.route('/reset-password/<token>', methods=['GET', 'POST'])
 def reset_password(token):
@@ -327,78 +318,65 @@ def reset_password(token):
         flash('Invalid reset link format', 'danger')
         return redirect(url_for('staff.forgot_password'))
 
-    cur = None
     try:
-        # Get the serializer with the correct salt
+        # Decode token
         serializer = get_serializer()
-        
-        # Verify and decode the token
         try:
-            email = serializer.loads(token, max_age=3600)  # 1 hour expiration
+            email = serializer.loads(token, max_age=3600)
         except:
-            flash('Invalid or expired reset link', 'danger')
+            flash('Reset link has expired or is invalid.', 'danger')
             return redirect(url_for('staff.forgot_password'))
 
-        cur = conn = get_mysql_connection(); cur = conn.cursor()
-        
-        # Verify token against database
-        cur.execute(
-            """SELECT id FROM staff 
-            WHERE email = %s 
-            AND reset_token = %s 
-            AND token_expiry> UTC_TIMESTAMP()""",
-            (email, token)
-        )
+        conn = get_mysql_connection()
+        cur = conn.cursor()
+
+        # Validate token in DB
+        cur.execute("""
+            SELECT id FROM staff 
+            WHERE email = %s AND reset_token = %s AND reset_token_expires > UTC_TIMESTAMP()
+        """, (email, token))
         user = cur.fetchone()
-        
+
         if not user:
-            flash('Invalid or expired reset link', 'danger')
+            flash('Invalid or expired reset token.', 'danger')
             return redirect(url_for('staff.forgot_password'))
 
         if request.method == 'POST':
             password = request.form.get('password')
             confirm_password = request.form.get('confirm_password')
-            
-            # Validate passwords
+
             if not password or len(password) < 8:
-                flash('Password must be at least 8 characters', 'danger')
+                flash('Password must be at least 8 characters.', 'danger')
                 return render_template('staff/reset-password.html', token=token)
-                
+
             if password != confirm_password:
-                flash('Passwords do not match', 'danger')
+                flash('Passwords do not match.', 'danger')
                 return render_template('staff/reset-password.html', token=token)
-            
-            # Update password in database
+
             hashed_password = generate_password_hash(password)
-            cur.execute(
-                """UPDATE staff 
-                SET password = %s, 
-                    reset_token = NULL, 
-                    token_expiry = NULL 
-                WHERE email = %s""",
-                (hashed_password, email)
-            )
-            conn = get_mysql_connection()
 
-            cur = conn.cursor()
-
+            # Update password and clear reset token
+            cur.execute("""
+                UPDATE staff 
+                SET password = %s, reset_token = NULL, reset_token_expires = NULL 
+                WHERE email = %s
+            """, (hashed_password, email))
             conn.commit()
-            conn.rollback()
 
-
-            flash('Your password has been updated successfully! Please login.', 'success')
+            flash('Your password has been reset. Please login.', 'success')
             return redirect(url_for('staff.staff_login'))
-        
-        # GET request - show the password reset form
+
         return render_template('staff/reset-password.html', token=token)
-            
+
     except Exception as e:
         current_app.logger.error(f"Password reset error: {str(e)}")
         flash('An error occurred. Please try again.', 'danger')
         return redirect(url_for('staff.forgot_password'))
+
     finally:
-        if cur:
+        if 'cur' in locals():
             cur.close()
+
     
 @staff_bp.route('/application/details/<int:app_id>')
 @staff_required
@@ -578,16 +556,6 @@ def print_application(app_id):
     response.headers['Content-Disposition'] = f'inline; filename=leave_application_{app_id}.pdf'
     return response
 
-
-@staff_bp.route('/test-logo')
-def test_logo():
-    return f'''
-    <div style="text-align:center;">
-        <h2>Base64 Logo Preview</h2>
-        <img src="{get_logo_base64()}" alt="Logo" style="height:100px;">
-    </div>
-    '''
-
 @staff_bp.route('/logout')
 def staff_logout():
     session.clear()
@@ -645,3 +613,11 @@ def cancel_application(id):
 
     return redirect(url_for('staff.staff_dashboard'))
 
+@staff_bp.route('/test-email')
+def test_email():
+    try:
+        msg = Message("✅ Flask Mail Test", recipients=["pappysjeux@gmail.com"], body="This is a test email.")
+        mail.send(msg)
+        return "✅ Email sent successfully!"
+    except Exception as e:
+        return f"❌ Failed to send email: {e}"
