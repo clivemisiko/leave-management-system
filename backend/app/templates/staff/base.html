@@ -19,6 +19,19 @@
     body {
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       background-color: #f8f9fa;
+      padding-top: 120px; /* Added to account for fixed header */
+    }
+    
+    /* Unified Header/Navbar Container */
+    .header-container {
+      background-color: var(--ict-blue);
+      color: white;
+      position: fixed;
+      top: 0;
+      width: 100%;
+      z-index: 1030;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+      border-bottom: 4px solid var(--ict-dark-blue);
     }
     
     .government-logo {
@@ -27,16 +40,7 @@
       object-fit: contain;
     }
     
-    .ministry-header {
-      background-color: var(--ict-blue);
-      color: white;
-      padding: 15px 0;
-      margin-bottom: 0;
-      border-bottom: 4px solid var(--ict-dark-blue);
-    }
-    
     .ministry-title {
-      color: white;
       font-weight: 700;
       font-size: 1.2rem;
       line-height: 1.3;
@@ -48,107 +52,134 @@
       font-size: 0.85rem;
     }
     
-    .staff-navbar {
-        background-color: var(--ict-blue);  /* Changed from white to --ict-blue */
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        padding: 10px 0;
-    }
-    
     .staff-portal-label {
-      color: white;
       font-weight: 600;
       text-shadow: 1px 1px 1px rgba(0,0,0,0.2);
     }
     
+    /* Navbar Styles */
+    .staff-navbar {
+      background-color: transparent;
+      padding: 0;
+    }
+    
     .navbar-brand {
-        color: white !important;  /* Changed from --ict-dark-blue to white */
-        font-weight: 600;
+      color: white !important;
+      font-weight: 600;
+      padding: 5px 0;
+    }
+    
+    .nav-link {
+      color: rgba(255,255,255,0.9) !important;
+      font-weight: 500;
+      padding: 10px 15px !important;
+      margin: 0 5px;
+      border-radius: 4px;
+      transition: all 0.3s;
+    }
+    
+    .nav-link:hover, .nav-link.active {
+      color: white !important;
+      background-color: rgba(255,255,255,0.15);
+    }
+    
+    .nav-link i {
+      margin-right: 6px;
     }
     
     .btn-outline-light {
-        color: white;
-        border-color: white;
+      color: white;
+      border-color: white;
     }
     
     .btn-outline-light:hover {
-        background-color: white;
-        color: var(--ict-blue);
+      background-color: white;
+      color: var(--ict-blue);
+    }
+    
+    /* Adjust navbar toggler color */
+    .navbar-toggler {
+      border-color: rgba(255,255,255,0.5);
+      color: white;
+    }
+    
+    .navbar-toggler-icon {
+      background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba%28255, 255, 255, 0.9%29' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
     }
   </style>
 </head>
 <body>
-  <!-- Ministry Header with Kenya Logo -->
-  <div class="ministry-header">
-    <div class="container">
+  <!-- Unified Header/Navbar Section -->
+  <div class="header-container">
+    <!-- Ministry Header -->
+    <div class="container pt-2">
       <div class="d-flex align-items-center">
-        <!-- Kenyan Government Logo -->
         <img src="{{ url_for('static', filename='images/kenya_logo.png') }}" 
              alt="Government of Kenya Logo" 
              class="government-logo">
         
-        <!-- Ministry Title -->
         <div class="ministry-title ms-3">
           MINISTRY OF INFORMATION, COMMUNICATIONS AND THE DIGITAL ECONOMY
           <div class="small">Republic of Kenya</div>
         </div>
         
-        <!-- Staff Portal Label -->
-        <div class="ms-auto staff-portal-label">
+        <div class="ms-auto staff-portal-label d-none d-lg-block">
           Staff Portal
         </div>
       </div>
     </div>
-  </div>
 
-<!-- Staff Navigation -->
-<nav class="navbar navbar-expand-lg navbar-light staff-navbar">
-    <div class="container">
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-light staff-navbar">
+      <div class="container">
         <a class="navbar-brand" href="{{ url_for('staff.staff_dashboard') }}">
-            <img src="{{ url_for('static', filename='images/MICDE_LOGO.png') }}" 
-                 alt="MICDE Logo" 
-                 style="height: 40px; margin-right: 10px;">
-                    </a>
+          <img src="{{ url_for('static', filename='images/MICDE_LOGO.png') }}" 
+               alt="MICDE Logo" 
+               style="height: 40px; margin-right: 10px;">
+        </a>
+        
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navMenu">
-            <span class="navbar-toggler-icon"></span>
+          <span class="navbar-toggler-icon"></span>
         </button>
 
         <div class="collapse navbar-collapse" id="navMenu">
-            <ul class="navbar-nav me-auto">
-                <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('staff.staff_dashboard') }}">
-                        <i class="fas fa-tachometer-alt me-1"></i> Dashboard
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('main.home') if 'main.home' in url_map else '/' }}">
-                        <i class="fas fa-home me-1"></i> Home
-                    </a>
-                </li>
-            </ul>
-            
-            {% if 'staff_logged_in' in session and not hide_nav %}
-            <div class="d-flex">
-                <a href="{{ url_for('staff.staff_logout') }}" class="btn btn-outline-light btn-sm">
-                    <i class="fas fa-sign-out-alt me-1"></i> Logout
-                </a>
-            </div>
-            {% endif %}
+          <ul class="navbar-nav me-auto">
+            <li class="nav-item">
+              <a class="nav-link" href="{{ url_for('staff.staff_dashboard') }}">
+                <i class="fas fa-tachometer-alt me-1"></i> Dashboard
+              </a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="{{ url_for('main.home') if 'main.home' in url_map else '/' }}">
+                <i class="fas fa-home me-1"></i> Home
+              </a>
+            </li>
+          </ul>
+          
+          {% if 'staff_logged_in' in session and not hide_nav %}
+          <div class="d-flex">
+            <a href="{{ url_for('staff.staff_logout') }}" class="btn btn-outline-light btn-sm">
+              <i class="fas fa-sign-out-alt me-1"></i> Logout
+            </a>
+          </div>
+          {% endif %}
         </div>
-    </div>
-</nav>>
+      </div>
+    </nav>
+  </div>
 
   {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
-        <div class="container mt-3">
-            {% for category, message in messages %}
-                {% if message != 'Login successful' %}
-                    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-                        {{ message }}
-                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                    </div>
-                {% endif %}
-            {% endfor %}
-        </div>
+      <div class="container mt-3">
+        {% for category, message in messages %}
+          {% if message != 'Login successful' %}
+            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+              {{ message }}
+              <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+          {% endif %}
+        {% endfor %}
+      </div>
     {% endif %}
   {% endwith %}
   
