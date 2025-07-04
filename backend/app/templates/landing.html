@@ -55,7 +55,12 @@
       display: flex;
       align-items: center;
     }
-
+    .bg-ict-blue {
+    background-color: var(--ict-blue) !important;
+    }
+    .text-ict-blue {
+        color: var(--ict-blue) !important;
+    }
     .navbar-brand img {
       height: 50px;
       margin-right: 10px;
@@ -240,6 +245,7 @@
       .btn-ict, .btn-outline-ict {
         width: 100%;
       }
+      
     }
   </style>
 </head>
@@ -337,8 +343,7 @@
               </div>
               <h5>Leave Policy</h5>
               <p>View the official leave policy and guidelines for government employees</p>
-              <a href="#" class="btn btn-outline-ict mt-3">View Policy</a>
-            </div>
+            <a href="{{ url_for('main.leave_policy') }}" class="btn btn-outline-ict mt-3">View Policy</a>            </div>
           </div>
         </div>
         <div class="col-md-4">

@@ -11,7 +11,13 @@ def landing():
 @main_bp.route('/about')
 def about():
     return render_template('about.html')
+
 @main_bp.route('/')
 def home():
     """Public home page"""
     return render_template('landing.html')
+
+@main_bp.route('/leave-policy')
+def leave_policy():
+    """Display the leave policy page"""
+    return render_template('leave_policy.html')

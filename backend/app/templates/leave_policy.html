@@ -1,0 +1,52 @@
+{% extends 'landing.html' %}
+
+{% block content %}
+<div class="container my-5">
+    <div class="row">
+        <div class="col-lg-8 mx-auto">
+            <div class="card shadow-sm">
+                <div class="card-header bg-ict-blue text-white">
+                    <h3 class="mb-0"><i class="fas fa-file-contract me-2"></i> Leave Policy</h3>
+                </div>
+                <div class="card-body">
+                    <h4 class="text-ict-blue">Ministry of Information, Communications and The Digital Economy</h4>
+                    <h5 class="mt-4">Leave Entitlements</h5>
+                    <ul class="list-group list-group-flush mb-4">
+                        <li class="list-group-item">
+                            <strong>Annual Leave:</strong> 30 working days per year
+                        </li>
+                        <li class="list-group-item">
+                            <strong>Sick Leave:</strong> 30 working days with full pay, additional 15 days at half pay
+                        </li>
+                        <li class="list-group-item">
+                            <strong>Maternity Leave:</strong> 90 calendar days with full pay
+                        </li>
+                        <li class="list-group-item">
+                            <strong>Paternity Leave:</strong> 14 calendar days with full pay
+                        </li>
+                        <li class="list-group-item">
+                            <strong>Compassionate Leave:</strong> 7 working days per occurrence
+                        </li>
+                    </ul>
+
+                    <h5>Application Procedure</h5>
+                    <ol class="mb-4">
+                        <li>Submit leave application at least 30 days in advance (except for emergencies)</li>
+                        <li>Applications must be approved by your immediate supervisor</li>
+                    </ol>
+
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        For full policy details, please refer to the Public Service Commission guidelines.
+                    </div>
+                </div>
+                <div class="card-footer text-end">
+                    <a href="{{ url_for('main.home') }}" class="btn btn-ict">
+                        <i class="fas fa-home me-1"></i> Back to Home
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
