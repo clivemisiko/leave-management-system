@@ -7,41 +7,72 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
     :root {
-        --micde-blue: #0056b3;
-        --micde-dark-blue: #003d7a;
-        --micde-light-blue: #e6f0ff;
+      --ict-blue: #0066b3;
+      --ict-dark-blue: #004080;
+      --ict-light-blue: #e6f2ff;
+      --ict-red: #cc0000;
+      --ict-gray: #f8f9fa;
+      --ict-green: #28a745;
+      --ict-gold: #ffc107;
+    }
+    
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #f8f9fa;
     }
     
     .government-logo {
-        height: 60px;
-        width: auto;
-        object-fit: contain;
+      height: 60px;
+      width: auto;
+      object-fit: contain;
     }
-
+    
     .ministry-header {
-        background-color: var(--micde-blue);
-        color: white;
-        padding: 15px 0;
-        margin-bottom: 25px;
-        border-bottom: 1px solid rgba(0, 0, 0, 0.05);
-        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+      background-color: var(--ict-blue);
+      color: white;
+      padding: 15px 0;
+      margin-bottom: 0;
+      border-bottom: 4px solid var(--ict-dark-blue);
     }
     
     .ministry-title {
-        color: var(--micde-blue);
-        font-weight: 700;
-        font-size: 1.5rem;
-        line-height: 1.2;
+      color: white;
+      font-weight: 700;
+      font-size: 1.2rem;
+      line-height: 1.3;
+      text-shadow: 1px 1px 1px rgba(0,0,0,0.2);
+    }
+    
+    .ministry-title .small {
+      color: rgba(255,255,255,0.9);
+      font-size: 0.85rem;
     }
     
     .staff-navbar {
-        background-color: var(--micde-dark-blue);
+        background-color: var(--ict-blue);  /* Changed from white to --ict-blue */
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        padding: 10px 0;
     }
     
     .staff-portal-label {
-        color: white;
+      color: white;
+      font-weight: 600;
+      text-shadow: 1px 1px 1px rgba(0,0,0,0.2);
+    }
+    
+    .navbar-brand {
+        color: white !important;  /* Changed from --ict-dark-blue to white */
         font-weight: 600;
-        margin-left: auto;
+    }
+    
+    .btn-outline-light {
+        color: white;
+        border-color: white;
+    }
+    
+    .btn-outline-light:hover {
+        background-color: white;
+        color: var(--ict-blue);
     }
   </style>
 </head>
@@ -56,38 +87,55 @@
              class="government-logo">
         
         <!-- Ministry Title -->
-        <div class="ministry-title ms-3 text-white">
+        <div class="ministry-title ms-3">
           MINISTRY OF INFORMATION, COMMUNICATIONS AND THE DIGITAL ECONOMY
-          <div class="small text-muted">Republic of Kenya</div>
+          <div class="small">Republic of Kenya</div>
         </div>
         
         <!-- Staff Portal Label -->
-        <div class="ms-auto text-white fw-bold">
+        <div class="ms-auto staff-portal-label">
           Staff Portal
         </div>
       </div>
     </div>
   </div>
 
-  <!-- Staff Navigation -->
-  <nav class="navbar navbar-expand-lg navbar-dark staff-navbar">
+<!-- Staff Navigation -->
+<nav class="navbar navbar-expand-lg navbar-light staff-navbar">
     <div class="container">
-      <a class="navbar-brand" href="{{ url_for('staff.staff_dashboard') }}">
-        <img src="{{ url_for('static', filename='images/MICDE_LOGO.png') }}" 
-             alt="MICDE Logo" 
-             style="height: 40px; margin-right: 10px;">
-        Leave Management System
-      </a>
-      
-      {% if 'staff_logged_in' in session and not hide_nav %}
-      <div class="ms-auto d-flex align-items-center">
-        <a href="{{ url_for('staff.staff_logout') }}" class="btn btn-outline-light btn-sm">
-          <i class="fas fa-sign-out-alt me-1"></i> Logout
-        </a>
-      </div>
-      {% endif %}
+        <a class="navbar-brand" href="{{ url_for('staff.staff_dashboard') }}">
+            <img src="{{ url_for('static', filename='images/MICDE_LOGO.png') }}" 
+                 alt="MICDE Logo" 
+                 style="height: 40px; margin-right: 10px;">
+                    </a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navMenu">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+
+        <div class="collapse navbar-collapse" id="navMenu">
+            <ul class="navbar-nav me-auto">
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('staff.staff_dashboard') }}">
+                        <i class="fas fa-tachometer-alt me-1"></i> Dashboard
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('main.home') if 'main.home' in url_map else '/' }}">
+                        <i class="fas fa-home me-1"></i> Home
+                    </a>
+                </li>
+            </ul>
+            
+            {% if 'staff_logged_in' in session and not hide_nav %}
+            <div class="d-flex">
+                <a href="{{ url_for('staff.staff_logout') }}" class="btn btn-outline-light btn-sm">
+                    <i class="fas fa-sign-out-alt me-1"></i> Logout
+                </a>
+            </div>
+            {% endif %}
+        </div>
     </div>
-  </nav>
+</nav>>
 
   {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
@@ -102,9 +150,10 @@
             {% endfor %}
         </div>
     {% endif %}
-{% endwith %}
+  {% endwith %}
+  
   {% block content %}{% endblock %}
   
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

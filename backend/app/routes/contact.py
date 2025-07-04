@@ -1,7 +1,7 @@
 # routes/contact_routes.py
 from flask import Blueprint, render_template, request, flash, redirect, url_for
 from flask_mail import Message
-from .extensions import mail
+from ..extensions import mail
 
 contact_bp = Blueprint('contact', __name__)
 
@@ -22,7 +22,7 @@ def contact():
                 msg = Message(
                     subject=f"MICDE Contact Form: {subject}",
                     sender=email,
-                    recipients=['support@micde.go.ke'],  # Replace with actual email
+                    recipients=['clivebillzerean@gmail.com'],  # Replace with actual email
                     body=f"From: {name} <{email}>\n\n{message}"
                 )
                 mail.send(msg)

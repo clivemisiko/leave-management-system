@@ -69,13 +69,17 @@ def create_app():
     from .staff.routes import staff_bp
     from .test_routes import test_bp
     from .setup_db_routes import setup_db_bp
-    from .contact import contact_bp
+    from .routes.contact import contact_bp
+    from .routes.main_routes import main_bp
 
+
+    app.register_blueprint(main_bp)
     app.register_blueprint(contact_bp)
     app.register_blueprint(test_bp)
     app.register_blueprint(staff_bp, url_prefix='/staff')
     app.register_blueprint(admin_bp, url_prefix='/admin')
     app.register_blueprint(setup_db_bp)
+    
 
     @app.route('/')
     def home():

@@ -583,3 +583,9 @@ def delete_staff(staff_id):
 
     return redirect(url_for('admin.admin_dashboard'))
 
+@admin_bp.route('/home')
+def admin_home_redirect():
+    """Redirect to either main home or admin dashboard based on auth"""
+    if 'admin_logged_in' in session:
+        return redirect(url_for('admin.admin_dashboard'))
+    return redirect(url_for('main.home'))

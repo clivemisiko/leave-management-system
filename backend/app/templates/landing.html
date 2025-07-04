@@ -267,7 +267,7 @@
         <img src="{{ url_for('static', filename='images/kenya_logo.png') }}" alt="Government of Kenya">
         <div>
           <span class="ministry-name">MICDE</span>
-          <span class="system-name">Leave Management System</span>
+          <span class="system-name">Leave Application</span>
         </div>
       </a>
       <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navMenu">
@@ -277,7 +277,7 @@
       <div class="collapse navbar-collapse" id="navMenu">
         <ul class="navbar-nav ms-auto">
           <li class="nav-item">
-            <a class="nav-link active" href="#home">Home</a>
+            <a class="nav-link active" href="landing.landing.html">Home</a>
           </li>
           <li class="nav-item">
             <a class="nav-link" href="{{ url_for('staff.staff_login') }}">Staff Login</a>
@@ -286,10 +286,10 @@
             <a class="nav-link" href="{{ url_for('admin.admin_login') }}">Admin Login</a>
           </li>
           <li class="nav-item">
-            <a class="nav-link" href="#about">About</a>
+              <a class="nav-link" href="{{ url_for('main.about') }}">About</a>
           </li>
           <li class="nav-item">
-            <a class="nav-link" href="#contact">Contact</a>
+            <a class="nav-link" href="{{ url_for('contact.contact') }}">Contact</a>
           </li>
         </ul>
       </div>

@@ -1,46 +1,157 @@
 {% extends "staff/base.html" %}
 
 {% block content %}
-{% with messages = get_flashed_messages(with_categories=true) %}
-  {% if messages %}
-    {% for category, message in messages %}
-      <div class="alert alert-{{ category }} alert-dismissible fade show mt-3" role="alert">
-        {{ message }}
-        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-      </div>
-    {% endfor %}
-  {% endif %}
-{% endwith %}
+<style>
+  body {
+    background: linear-gradient(rgba(0, 102, 179, 0.9), rgba(0, 102, 179, 0.9)), 
+                url("{{ url_for('static', filename='images/MICDE_BACKGROUND.png') }}");
+    background-size: cover;
+    background-position: center;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
 
-<div class="container mt-5">
-    <div class="row justify-content-center">
-        <div class="col-md-6 col-lg-4">
-            <div class="card shadow-sm">
-                <div class="card-header bg-primary text-white">
-                    <h4 class="text-center">Staff Login</h4>
-                </div>
-                <div class="card-body">
-                    <form method="POST" action="{{ url_for('staff.staff_login') }}">
-                        <div class="mb-3">
-                            <label for="login_input" class="form-label">Email or P/Number</label>
-                            <input type="text" class="form-control" id="login_input" name="login_input" required>
-                        </div>
-                        <div class="mb-3">
-                            <label for="password" class="form-label">Password</label>
-                            <input type="password" class="form-control" id="password" name="password" required>
-                        </div>
-                        <div class="d-grid gap-2">
-                            <button type="submit" class="btn btn-primary">Login</button>
-                            <a href="{{ url_for('staff.forgot_password') }}" class="btn btn-link">Forgot Password?</a>
-                        </div>
-                    </form>
-                </div>
-                <div class="card-footer text-center">
-                    Don't have an account? <a href="{{ url_for('staff.register') }}">Register here</a>
-                </div>
-            </div>
+  .login-container {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem 0;
+  }
+
+  .login-card {
+    border: none;
+    border-radius: 10px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    width: 100%;
+    max-width: 450px;
+    overflow: hidden;
+  }
+
+  .card-header {
+    background-color: var(--ict-blue);
+    color: white;
+    padding: 1.5rem;
+    text-align: center;
+    border-bottom: none;
+  }
+
+  .card-body {
+    padding: 2rem;
+    background-color: white;
+  }
+
+  .form-label {
+    font-weight: 500;
+    color: #333;
+    margin-bottom: 0.5rem;
+  }
+
+  .form-control {
+    padding: 0.75rem 1rem;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    margin-bottom: 1rem;
+  }
+
+  .form-control:focus {
+    border-color: var(--ict-blue);
+    box-shadow: 0 0 0 0.25rem rgba(0, 102, 179, 0.25);
+  }
+
+  .btn-login {
+    background-color: var(--ict-blue);
+    border: none;
+    padding: 0.75rem;
+    font-weight: 500;
+    border-radius: 6px;
+    transition: all 0.3s;
+  }
+
+  .btn-login:hover {
+    background-color: var(--ict-dark-blue);
+    transform: translateY(-2px);
+  }
+
+  .btn-link {
+    color: var(--ict-blue);
+    text-decoration: none;
+  }
+
+  .btn-link:hover {
+    text-decoration: underline;
+  }
+
+  .card-footer {
+    background-color: #f8f9fa;
+    border-top: 1px solid #eee;
+    padding: 1rem;
+    text-align: center;
+    font-size: 0.9rem;
+  }
+
+  .card-footer a {
+    color: var(--ict-blue);
+    font-weight: 500;
+    text-decoration: none;
+  }
+
+  .card-footer a:hover {
+    text-decoration: underline;
+  }
+
+  .alert {
+    position: fixed;
+    top: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1000;
+    min-width: 300px;
+    text-align: center;
+  }
+</style>
+
+<div class="login-container">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for category, message in messages %}
+        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+          {{ message }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+
+  <div class="login-card">
+    <div class="card-header">
+      <img src="{{ url_for('static', filename='images/MICDE_LOGO.png') }}" alt="MICDE Logo" style="height: 50px; margin-bottom: 15px;">
+      <h4>Staff Login</h4>
+      <p class="mb-0">Ministry of Information, Communication & Digital Economy</p>
     </div>
+    <div class="card-body">
+      <form method="POST" action="{{ url_for('staff.staff_login') }}">
+        <div class="mb-3">
+          <label for="login_input" class="form-label">Email or Staff Number</label>
+          <input type="text" class="form-control" id="login_input" name="login_input" required placeholder="Enter your email or staff number">
+        </div>
+        <div class="mb-3">
+          <label for="password" class="form-label">Password</label>
+          <input type="password" class="form-control" id="password" name="password" required placeholder="Enter your password">
+        </div>
+        <div class="d-grid gap-2 mb-3">
+          <button type="submit" class="btn btn-login">Login</button>
+        </div>
+        <div class="text-center">
+          <a href="{{ url_for('staff.forgot_password') }}" class="btn-link">Forgot Password?</a>
+        </div>
+      </form>
+    </div>
+    <div class="card-footer">
+      Don't have an account? <a href="{{ url_for('staff.register') }}">Request access</a>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -49,7 +160,7 @@ document.querySelector('form').addEventListener('submit', function(e) {
     const password = document.getElementById('password').value;
     
     if (!loginInput) {
-        alert('Please enter your email or P/Number');
+        alert('Please enter your email or staff number');
         e.preventDefault();
         return;
     }

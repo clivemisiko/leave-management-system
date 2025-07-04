@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block title %}Leave History{% endblock %}
+
+{% block content %}
+<div class="card shadow-sm">
+    <div class="card-header bg-primary text-white">
+        <h4 class="mb-0"><i class="fas fa-history me-2"></i> My Leave History</h4>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Leave Type</th>
+                        <th>Start Date</th>
+                        <th>End Date</th>
+                        <th>Days</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Example row - replace with actual data from your database -->
+                    <tr>
+                        <td>Annual Leave</td>
+                        <td>2023-06-01</td>
+                        <td>2023-06-07</td>
+                        <td>5</td>
+                        <td><span class="badge bg-success">Approved</span></td>
+                        <td>
+                            <a href="#" class="btn btn-sm btn-outline-primary">View</a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

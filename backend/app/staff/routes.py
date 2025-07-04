@@ -136,6 +136,7 @@ def staff_dashboard():
         pending=pending,
         rejected=rejected,
         leave_balance=current_balance  # Use the stored balance directly
+    
     )
 
 @staff_bp.route('/register', methods=['GET', 'POST'])
@@ -613,11 +614,3 @@ def cancel_application(id):
 
     return redirect(url_for('staff.staff_dashboard'))
 
-@staff_bp.route('/test-email')
-def test_email():
-    try:
-        msg = Message("✅ Flask Mail Test", recipients=["pappysjeux@gmail.com"], body="This is a test email.")
-        mail.send(msg)
-        return "✅ Email sent successfully!"
-    except Exception as e:
-        return f"❌ Failed to send email: {e}"
