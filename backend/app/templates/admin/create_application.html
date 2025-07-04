@@ -5,31 +5,31 @@
     <div class="card shadow">
         <div class="card-header bg-primary text-white">
             <h3 class="mb-0">
-                <i class="bi bi-file-earmark-plus"></i> Create New Leave Application
+                <i class="bi bi-pencil-square me-2"></i>Create New Leave Application
             </h3>
         </div>
-        
+
         <div class="card-body">
-          <form method="POST" id="leaveForm" action="{{ url_for('admin.create_application') }}">
-        
+            <form method="POST" id="leaveForm" action="{{ url_for('admin.create_application') }}" enctype="application/x-www-form-urlencoded">
+                
                 <!-- Personal Information Section -->
                 <div class="mb-4">
-                    <h5 class="border-bottom pb-2">Personal Information</h5>
+                    <h5 class="border-bottom pb-2 mb-3 text-primary">Personal Information</h5>
                     <div class="row g-3">
                         <div class="col-md-6">
-                            <label class="form-label">Full Name <span class="text-danger">*</span></label>
-                            <input type="text" name="name" class="form-control" required>
+                            <label class="form-label fw-semibold">Full Name <span class="text-danger">*</span></label>
+                            <input type="text" name="name" class="form-control border-primary" required>
                         </div>
                         
                         <div class="col-md-3">
-                            <label class="form-label">P/Number <span class="text-danger">*</span></label>
-                            <input type="text" name="pno" class="form-control" required>
+                            <label class="form-label fw-semibold">P/Number <span class="text-danger">*</span></label>
+                            <input type="text" name="pno" class="form-control border-primary" required>
                         </div>
                         
                         <div class="col-md-3">
-                            <label class="form-label">Designation <span class="text-danger">*</span></label>
-                            <select name="designation" class="form-select" required>
-                                <option value="">Select Designation</option>
+                            <label class="form-label fw-semibold">Designation <span class="text-danger">*</span></label>
+                            <select name="designation" class="form-select border-primary" required>
+                                <option value="" disabled selected>Select Designation</option>
                                 <option value="HOD">Head of Department</option>
                                 <option value="Staff">Staff Member</option>
                             </select>
@@ -39,73 +39,79 @@
 
                 <!-- Leave Details Section -->
                 <div class="mb-4">
-                    <h5 class="border-bottom pb-2">Leave Details</h5>
+                    <h5 class="border-bottom pb-2 mb-3 text-primary">Leave Details</h5>
                     <div class="row g-3">
                         <div class="col-md-3">
-                            <label class="form-label">Leave Type <span class="text-danger">*</span></label>
-                            <select name="leave_type" class="form-select" required>
-                                <option value="">Select Type</option>
+                            <label class="form-label fw-semibold">Leave Type <span class="text-danger">*</span></label>
+                            <select name="leave_type" class="form-select border-primary" required>
+                                <option value="" disabled selected>Select Type</option>
                                 <option value="Annual">Annual</option>
                                 <option value="Sick">Sick</option>
                                 <option value="Maternity">Maternity</option>
                                 <option value="Paternity">Paternity</option>
                                 <option value="Study">Study</option>
                                 <option value="Unpaid">Unpaid</option>
-                                                        </select>
-                                                    </div>
-                                                    
+                            </select>
+                        </div>
+                        
                         <div class="col-md-2">
-                            <label class="form-label">Days Requested <span class="text-danger">*</span></label>
-                            <input type="number" name="leave_days" class="form-control" min="1" id="leaveDays" required>
+                            <label class="form-label fw-semibold">Days Requested <span class="text-danger">*</span></label>
+                            <input type="number" name="leave_days" class="form-control border-primary" min="1" id="leaveDays" required>
+                            <small class="text-muted">Minimum 1 day</small>
                         </div>
                         
                         <div class="col-md-3">
-                            <label class="form-label">Start Date <span class="text-danger">*</span></label>
-                            <input type="date" name="start_date" class="form-control" id="startDate" required>
+                            <label class="form-label fw-semibold">Start Date <span class="text-danger">*</span></label>
+                            <input type="date" name="start_date" class="form-control border-primary" id="startDate" required>
                         </div>
                         
-                        <div class="col-md-3">
-                            <label class="form-label">End Date <span class="text-danger">*</span></label>
-                            <input type="date" name="end_date" class="form-control" id="endDate" required readonly>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">End Date</label>
+                            <input type="date" name="end_date" class="form-control bg-light" id="endDate" readonly>
                         </div>
                     </div>
                     
-                    <!-- Last Leave Dates (Conditional) -->
-                    <div class="row g-3 mt-2" id="lastLeaveSection">
-                        <div class="col-md-3">
-                            <label class="form-label">Is this your first leave?</label>
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" id="firstLeaveCheck">
-                                <label class="form-check-label" for="firstLeaveCheck">Yes, this is my first leave</label>
+                    <!-- First Time Applying -->
+                    <div class="mb-3 mt-3">
+                        <label class="form-label fw-semibold">Is this your first time applying for leave? <span class="text-danger">*</span></label>
+                        <div class="btn-group" role="group">
+                            <input type="radio" class="btn-check" name="first_time" value="yes" id="firstTimeYes" required>
+                            <label class="btn btn-outline-primary" for="firstTimeYes">Yes</label>
+                            
+                            <input type="radio" class="btn-check" name="first_time" value="no" id="firstTimeNo" required>
+                            <label class="btn btn-outline-primary" for="firstTimeNo">No</label>
+                        </div>
+                    </div>
+                    
+                    <!-- Last Leave Dates (hidden unless "No" is selected) -->
+                    <div id="lastLeaveDates" class="mb-3 p-3 bg-light rounded" style="display: none;">
+                        <h5 class="border-bottom pb-2 mb-3 text-primary">Previous Leave Information</h5>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Last Leave Start Date</label>
+                                <input type="date" name="last_leave_start" class="form-control border-primary">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Last Leave End Date</label>
+                                <input type="date" name="last_leave_end" class="form-control border-primary">
                             </div>
                         </div>
-                        
-                        <div class="col-md-3" id="lastLeaveStartGroup">
-                            <label class="form-label">Last Leave Start Date</label>
-                            <input type="date" name="last_leave_start" class="form-control" id="lastLeaveStart">
-                        </div>
-                        
-                        <div class="col-md-3" id="lastLeaveEndGroup">
-                            <label class="form-label">Last Leave End Date</label>
-                            <input type="date" name="last_leave_end" class="form-control" id="lastLeaveEnd">
-                        </div>
                     </div>
-                    
-                    
                 </div>
 
                 <!-- Contact Information Section -->
                 <div class="mb-4">
-                    <h5 class="border-bottom pb-2">Contact During Leave</h5>
+                    <h5 class="border-bottom pb-2 mb-3 text-primary">Contact During Leave</h5>
                     <div class="row g-3">
                         <div class="col-md-8">
-                            <label class="form-label">Physical Address <span class="text-danger">*</span></label>
-                            <textarea name="contact_address" class="form-control" rows="2" required></textarea>
+                            <label class="form-label fw-semibold">Physical Address <span class="text-danger">*</span></label>
+                            <textarea name="contact_address" class="form-control border-primary" rows="2" required></textarea>
+                            <small class="text-muted">Where you'll be during leave</small>
                         </div>
                         
                         <div class="col-md-4">
-                            <label class="form-label">Emergency Contact <span class="text-danger">*</span></label>
-                            <input type="tel" name="contact_tel" class="form-control" required>
+                            <label class="form-label fw-semibold">Emergency Contact <span class="text-danger">*</span></label>
+                            <input type="tel" name="contact_tel" class="form-control border-primary" required>
                             <small class="text-muted">Include country code if abroad</small>
                         </div>
                     </div>
@@ -113,61 +119,54 @@
 
                 <!-- Salary Payment Section -->
                 <div class="mb-4">
-                    <h5 class="border-bottom pb-2">Salary Payment</h5>
-                    <div class="form-group">
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="salary_option" 
-                                   id="salary_continue" value="continue" checked>
-                            <label class="form-check-label" for="salary_continue">
-                                Continue to be paid into my bank account
-                            </label>
+                    <label class="form-label fw-semibold">Salary Payment Method</label>
+                    <div class="btn-group" role="group">
+                        <input type="radio" class="btn-check" name="salary_option" value="continue" id="salaryContinue" checked>
+                        <label class="btn btn-outline-primary" for="salaryContinue">Continue Bank Deposit</label>
+                        
+                        <input type="radio" class="btn-check" name="salary_option" value="alternate" id="salaryAlternate">
+                        <label class="btn btn-outline-primary" for="salaryAlternate">Alternate Payment</label>
+                    </div>
+                    <div id="salary-address-group" class="mt-3" style="display: none;">
+                        <label for="salary_address" class="form-label fw-semibold">Alternate Payment Address</label>
+                        <input type="text" name="salary_address" id="salary_address" class="form-control border-primary">
+                        <small class="text-muted">Provide address if not through bank</small>
+                    </div>
+                </div>
+
+                <!-- Work Handover Section -->
+                <div class="mb-4">
+                    <h5 class="border-bottom pb-2 mb-3 text-primary">Work Handover</h5>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Delegated Worker <span class="text-danger">*</span></label>
+                            <input type="text" name="delegate" class="form-control border-primary" required
+                                   placeholder="Enter name of person handling your duties">
+                            <small class="text-muted">Who will handle your responsibilities?</small>
                         </div>
                         
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="salary_option" 
-                                   id="salary_address_option" value="address">
-                            <label class="form-check-label" for="salary_address_option">
-                                Be paid at the following address:
-                            </label>
-                            <input type="text" class="form-control mt-2" name="salary_address" 
-                                   id="salary_address" disabled>
+                        <div class="col-md-6">
+                            <div class="form-check mt-4 pt-2">
+                                <input class="form-check-input" type="checkbox" name="outside_country" id="outsideCountry">
+                                <label class="form-check-label" for="outsideCountry">
+                                    I will be outside the country during leave
+                                </label>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-      <!-- Work Handover Section -->
-<div class="mb-4">
-    <h5 class="border-bottom pb-2">Work Handover</h5>
-    <div class="row g-3">
-        <div class="col-md-6">
-            <label class="form-label">Delegated Worker <span class="text-danger">*</span></label>
-            <input type="text" name="delegate" class="form-control" required
-                   placeholder="Enter name of person handling your duties">
-        </div>
-        
-        <div class="col-md-6">
-            <div class="form-check mt-4 pt-2">
-                <input class="form-check-input" type="checkbox" name="outside_country" id="outsideCountry">
-                <label class="form-check-label" for="outsideCountry">
-                    I will be outside the country during leave
-                </label>
-            </div>
-        </div>
-    </div>
-</div>
-</div>
-
                 <!-- Form Actions -->
-                <div class="d-flex justify-content-between mt-4">
+                <div class="d-flex justify-content-between mt-4 pt-3 border-top">
                     <button type="button" class="btn btn-outline-secondary" onclick="history.back()">
-                        <i class="bi bi-arrow-left"></i> Cancel
+                        <i class="bi bi-arrow-left me-2"></i> Cancel
                     </button>
                     <div>
-                        <button type="reset" class="btn btn-warning me-2" id="resetBtn">
-                            <i class="bi bi-eraser"></i> Reset
+                        <button type="reset" class="btn btn-outline-warning me-2">
+                            <i class="bi bi-eraser me-2"></i> Reset
                         </button>
                         <button type="submit" class="btn btn-primary">
-                            <i class="bi bi-save"></i> Submit Application
+                            <i class="bi bi-check-circle me-2"></i> Submit
                         </button>
                     </div>
                 </div>
@@ -178,37 +177,18 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Toggle last leave dates based on first leave checkbox
-    const firstLeaveCheck = document.getElementById('firstLeaveCheck');
-    const lastLeaveStartGroup = document.getElementById('lastLeaveStartGroup');
-    const lastLeaveEndGroup = document.getElementById('lastLeaveEndGroup');
-    const lastLeaveStart = document.getElementById('lastLeaveStart');
-    const lastLeaveEnd = document.getElementById('lastLeaveEnd');
-    const resetBtn = document.getElementById('resetBtn');
+    // Toggle last leave dates based on first leave radio
+    const firstTimeRadios = document.getElementsByName("first_time");
+    const lastLeaveSection = document.getElementById("lastLeaveDates");
 
-    function toggleLastLeaveFields() {
-        if (firstLeaveCheck.checked) {
-            lastLeaveStartGroup.style.display = 'none';
-            lastLeaveEndGroup.style.display = 'none';
-            lastLeaveStart.value = '';
-            lastLeaveEnd.value = '';
-        } else {
-            lastLeaveStartGroup.style.display = 'block';
-            lastLeaveEndGroup.style.display = 'block';
-        }
-    }
-
-    // Initialize
-    toggleLastLeaveFields();
-    
-    // Add event listener
-    firstLeaveCheck.addEventListener('change', toggleLastLeaveFields);
-    
-    // Reset form handler
-    resetBtn.addEventListener('click', function() {
-        setTimeout(() => {
-            toggleLastLeaveFields();
-        }, 0);
+    firstTimeRadios.forEach(radio => {
+        radio.addEventListener("change", () => {
+            if (document.getElementById("firstTimeNo").checked) {
+                lastLeaveSection.style.display = "block";
+            } else {
+                lastLeaveSection.style.display = "none";
+            }
+        });
     });
 
     // Date Calculations
@@ -230,13 +210,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Salary Payment Toggle
     const salaryOption = document.querySelectorAll('input[name="salary_option"]');
-    const salaryAddress = document.getElementById('salary_address');
+    const salaryAddressGroup = document.getElementById('salary-address-group');
     
     salaryOption.forEach(radio => {
         radio.addEventListener('change', function() {
-            salaryAddress.disabled = this.value !== 'address';
-            if (this.value === 'continue') {
-                salaryAddress.value = '';
+            if (this.value === 'alternate') {
+                salaryAddressGroup.style.display = 'block';
+            } else {
+                salaryAddressGroup.style.display = 'none';
             }
         });
     });
@@ -250,8 +231,10 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         // Additional validation for last leave dates if not first leave
-        if (!firstLeaveCheck.checked) {
-            if (!lastLeaveStart.value || !lastLeaveEnd.value) {
+        if (document.getElementById('firstTimeNo').checked) {
+            const lastStart = document.querySelector('input[name="last_leave_start"]');
+            const lastEnd = document.querySelector('input[name="last_leave_end"]');
+            if (!lastStart.value || !lastEnd.value) {
                 e.preventDefault();
                 alert('Please provide your last leave dates or confirm this is your first leave');
                 return false;
@@ -265,13 +248,23 @@ document.addEventListener('DOMContentLoaded', function() {
 
 <style>
     .form-label {
-        font-weight: 500;
+        margin-bottom: 0.5rem;
     }
     .card-header {
-        border-radius: 0.375rem 0.375rem 0 0 !important;
+        padding: 1.25rem 1.5rem;
+    }
+    .btn-outline-primary:hover {
+        color: #fff;
+    }
+    .border-primary {
+        border-color: #0d6efd !important;
     }
     #endDate {
         background-color: #f8f9fa;
+        cursor: not-allowed;
+    }
+    .bg-light {
+        background-color: #f8f9fa!important;
     }
 </style>
 {% endblock %}

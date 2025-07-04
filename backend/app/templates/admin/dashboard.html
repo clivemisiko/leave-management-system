@@ -9,104 +9,159 @@
         --micde-green: #28a745;
         --micde-gold: #ffc107;
     }
-    
+      body {
+    background-image: url("{{ url_for('static', filename='images/MICDE_BACKGROUND.png') }}");
+    background-size: cover;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+    background-position: center center;
+  }
+.content {
+  padding: 20px;
+  background-color: rgba(255, 255, 255, 0.94); /* Subtle overlay for readability */
+  margin-left: 220px; /* Same as sidebar */
+  margin-top: 80px;   /* Same as header */
+  min-height: 100vh;
+}
+.micde-card {
+        background-color: var(--micde-light-blue);
+        border-top: 4px solid var(--micde-blue);
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        margin-bottom: 1rem;
+    }
+.micde-card-header {
+        background-color: var(--micde-blue);
+        color: white;
+        font-weight: 600;
+        padding: 0.75rem 1rem;
+    }
+      .stat-card {
+        border-left: 4px solid var(--micde-blue);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+    }
+    .staff-info {
+        background-color: var(--micde-blue);
+        color: white;
+        padding: 15px;
+        border-radius: 8px;
+        margin-bottom: 1rem;
+    }
+    .staff-info .text-muted {
+        color: white !important;
+    }
+    .search-filter-container {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+     .table th, .table td {
+        padding: 0.75rem;
+    }
+    .toast-container {
+        z-index: 1055;
+    }
+      .btn-micde {
+        background-color: var(--micde-blue);
+        color: white;
+        border-color: var(--micde-blue);
+    }
+    .btn-micde:hover {
+        background-color: var(--micde-dark-blue);
+        border-color: var(--micde-dark-blue);
+    }
+  .container-fluid {
+  padding-left: 0;
+  padding-right: 0;
+}
+
     .dashboard-header {
         border-bottom: 3px solid var(--micde-blue);
         padding-bottom: 15px;
         margin-bottom: 25px;
     }
-    
-    .micde-card {
-        border: none;
-        background-color: var(--micde-light-blue);
-        border-radius: 8px;
-        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-        transition: all 0.3s ease;
-        border-top: 4px solid var(--micde-blue);
-        margin-bottom: 25px;
-    }
-    
+    .sidebar {
+  top: 80px; /* Matches .ministry-header height */
+}
+
+.ministry-header {
+  height: 80px;
+}
+
     .micde-card:hover {
         transform: translateY(-5px);
         box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
     }
-    
-    .micde-card-header {
-        background-color: var(--micde-blue);
-        color: white;
-        font-weight: 600;
-        border-bottom: none;
-    }
-    
-    .stat-card {
-        border-left: 4px solid var(--micde-blue);
-    }
-    
+
+   
+    .card-body {
+  padding: 15px 20px;
+}
+
+
     .stat-card.approved {
         border-left-color: var(--micde-green);
     }
-    
+
     .stat-card.pending {
         border-left-color: var(--micde-gold);
     }
-    
+
     .stat-card.rejected {
         border-left-color: #dc3545;
     }
-    
+
     .btn-micde {
         background-color: var(--micde-blue);
         border-color: var(--micde-blue);
         color: white;
     }
-    
+
     .btn-micde:hover {
         background-color: var(--micde-dark-blue);
         border-color: var(--micde-dark-blue);
         color: white;
     }
-    
+
     .status-badge {
         padding: 5px 10px;
         border-radius: 20px;
         font-size: 0.8rem;
         font-weight: 500;
     }
-    
+
     .empty-state {
         background-color: var(--micde-light-blue);
         border-radius: 8px;
     }
-    
-    .staff-info {
-        background-color: var(--micde-light-blue);
-        border-radius: 8px;
-        padding: 15px;
-    }
-    
-    /* Override sidebar styles to match staff theme */
-    .sidebar {
-        background-color: var(--micde-dark-blue) !important;
-    }
-    
-    .sidebar a:hover, .sidebar .active {
-        background-color: var(--micde-blue) !important;
-    }
-    
-    /* Override navbar styles */
-    .navbar {
-        background-color: var(--micde-dark-blue) !important;
-    }
-    .search-filter-container {
-    display: flex;
-    align-items: center;
-    gap: 15px; /* Adjust this value as needed */
+
+    .table-responsive {
+    margin-bottom: 0;
 }
+
+.table {
+    margin-bottom: 0;
+}
+
+.table th, .table td {
+    padding: 12px 15px; /* Comfortable cell padding */
+}
+/* Add to your dashboard styles */
+.section-spacing {
+    margin-bottom: 30px;
+}
+.mt-4, .mb-4 {
+  margin-top: 1rem !important;
+  margin-bottom: 1rem !important;
+}
+.row > [class*="col-"] {
+  margin-bottom: 1rem;
+}
+
 </style>
 
 <div class="container-fluid px-4">
-    <!-- Admin Info Header -->
-    <div class="staff-info mb-4" style="margin-top: 0;">
+    <div class="staff-info">
         <div class="d-flex justify-content-between align-items-center">
             <div>
                 <h3 class="mb-1">Welcome, {{ session.get('admin_username', 'Admin') }}</h3>
@@ -115,17 +170,8 @@
                     <span>Last Login: {{ session.get('last_login', 'N/A') }}</span>
                 </div>
             </div>
-            <div>
-                <a href="{{ url_for('admin.create_application') }}" class="btn btn-micde me-2">
-                    <i class="fas fa-plus-circle me-1"></i> Create Application
-                </a>
-                <a href="{{ url_for('main.home') }}" class="btn btn-outline-primary">
-                    <i class="fas fa-home me-1"></i> Home
-                </a>
-            </div>
         </div>
     </div>
-    
     <!-- Toast Notifications -->
     <div aria-live="polite" aria-atomic="true" class="position-relative">
         <div class="toast-container position-fixed top-0 end-0 p-3">
@@ -274,33 +320,31 @@
 
     <!-- Applications Table -->
     <div class="card micde-card">
-        <div class="card-header micde-card-header d-flex justify-content-between align-items-center">
-            <h5 class="mb-0"><i class="fas fa-clipboard-list me-2"></i>Leave Applications</h5>
-            <div>
-                <form method="get" class="d-inline me-1">
-                    <div class="search-filter-container"></div>
-                    <div class="input-group input-group-sm">
-                        <input type="text" name="search" class="form-control" placeholder="Search..." value="{{ request.args.get('search', '') }}">
-                        <button class="btn btn-outline-light" type="submit">
-                            <i class="fas fa-search"></i>
-                        </button>
-                    </div>
-                    </div>
-                </form>
-                <div class="dropdown d-inline">
-                    <button class="btn btn-sm btn-outline-light dropdown-toggle" type="button" id="dropdownMenuButton" data-bs-toggle="dropdown">
-                        <i class="fas fa-filter"></i> Filter
-                    </button>
-                    <ul class="dropdown-menu dropdown-menu-end">
-                        <li><a class="dropdown-item" href="?status=all">All Applications</a></li>
-                        <li><hr class="dropdown-divider"></li>
-                        <li><a class="dropdown-item" href="?status=approved">Approved</a></li>
-                        <li><a class="dropdown-item" href="?status=pending">Pending</a></li>
-                        <li><a class="dropdown-item" href="?status=rejected">Rejected</a></li>
-                    </ul>
-                </div>
+       <div class="card-header micde-card-header d-flex justify-content-between align-items-center">
+    <h5 class="mb-0"><i class="fas fa-clipboard-list me-2"></i>Leave Applications</h5>
+    <div class="search-filter-container">
+        <form method="get" class="d-inline me-1">
+            <div class="input-group input-group-sm">
+                <input type="text" name="search" class="form-control" placeholder="Search..." value="{{ request.args.get('search', '') }}">
+                <button class="btn btn-outline-light" type="submit">
+                    <i class="fas fa-search"></i>
+                </button>
             </div>
+        </form>
+        <div class="dropdown d-inline">
+            <button class="btn btn-sm btn-outline-light dropdown-toggle" type="button" id="dropdownMenuButton" data-bs-toggle="dropdown">
+                <i class="fas fa-filter"></i> Filter
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end">
+                <li><a class="dropdown-item" href="?status=all">All Applications</a></li>
+                <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item" href="?status=approved">Approved</a></li>
+                <li><a class="dropdown-item" href="?status=pending">Pending</a></li>
+                <li><a class="dropdown-item" href="?status=rejected">Rejected</a></li>
+            </ul>
         </div>
+    </div>
+</div>
         <div class="card-body">
             <div class="table-responsive">
                 <table class="table table-hover">
@@ -309,7 +353,6 @@
                             <th>#</th>
                             <th>Staff Member</th>
                             <th>Leave Type</th>
-                            <th>Days</th>
                             <th>Period</th>
                             <th>Status</th>
                             <th>Actions</th>
@@ -324,7 +367,6 @@
                                 <div class="small text-muted">{{ app.pno }} | {{ app.designation }}</div>
                             </td>
                             <td>{{ app.leave_type }}</td>
-                            <td>{{ app.leave_days }} day(s)</td>
                             <td>
                                 {% if app.start_date and app.end_date %}
                                     {{ app.start_date.strftime('%b %d, %Y') }} to {{ app.end_date.strftime('%b %d, %Y') }}<br>

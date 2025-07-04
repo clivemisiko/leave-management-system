@@ -49,7 +49,10 @@ def admin_login():
                 session['admin_logged_in'] = True
                 session['admin_id'] = admin['id']
                 session['admin_username'] = admin['username']
+                session['last_login'] = datetime.now().strftime('%b %d, %Y %I:%M %p')
+
                 return redirect(url_for('admin.admin_dashboard'))
+            
             else:
                 flash('Invalid password', 'danger')
         except Exception as e:

@@ -268,9 +268,10 @@
           <a href="#"><i class="fas fa-envelope"></i> info@micde.go.ke</a>
         </div>
         <div>
-          <a href="#"><i class="fas fa-sitemap"></i> Sitemap</a>
-          <a href="#"><i class="fas fa-question-circle"></i> FAQ</a>
-        </div>
+          <a href="https://ict.go.ke/faqs" target="_blank" class="btn btn-outline-light btn-sm ms-2">
+            <i class="fas fa-question-circle me-1"></i> FAQ
+          </a>
+                  </div>
       </div>
     </div>
   </div>
@@ -411,12 +412,18 @@
         <div class="col-md-2 mb-4">
           <h5>Quick Links</h5>
           <div class="footer-links">
-            <a href="{{url_for('main.home')}}">Home</a>
+             <a href="{{url_for('main.home')}}">Home</a>
             <a href="{{url_for('staff.staff_login')}}">Staff Login</a>
             <a href="{{url_for('admin.admin_login')}}">Admin Login</a>
             <a href="{{url_for('main.leave_policy')}}">Leave Policy</a>
             <a href="{{url_for('contact.contact')}}">Contact Us</a>
+               <h5>FAQs</h5>
+      <p>Frequently Asked Questions about the MICDE Leave System</p>
+      <a href="https://ict.go.ke/faqs" class="btn btn-outline-ict mt-3" target="_blank">
+        <i class="fas fa-arrow-right me-1"></i> View FAQs
+      </a>
           </div>
+          
         </div>
         <div class="col-md-3 mb-4">
           <h5>Resources</h5>
