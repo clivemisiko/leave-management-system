@@ -82,9 +82,11 @@
 </head>
 <body>
 
+<!-- Logo Section - Add error handling -->
 <div class="logo-container">
-{% if logo_base64 %}<img src="{{ logo_base64 }}" alt="Kenya Government Logo" style="height: 80px;">
-    {% endif %}
+    {% if logo_base64 %}
+        <img src="{{ logo_base64 }}" alt="Government Logo" style="height:80px;">
+        {% endif %}
 </div>
 
 

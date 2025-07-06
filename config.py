@@ -11,8 +11,8 @@ class Config:
     MYSQL_DB = os.getenv('MYSQL_DB', 'test')
     MYSQL_PORT = int(os.getenv('MYSQL_PORT', 4000))
     MYSQL_SSL_DISABLED = False
+    MYSQL_SSL = {"fake_flag_to_enable_tls": True}  # ✅ Required for TiDB Cloud Serverless
 
-# Add this DevelopmentConfig class
 class DevelopmentConfig(Config):
     DEBUG = True
     TESTING = True

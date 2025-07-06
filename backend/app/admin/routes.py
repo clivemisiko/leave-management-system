@@ -11,12 +11,6 @@ admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
 
 # --- Helpers ---
 
-def get_logo_base64():
-    logo_path = os.path.join(current_app.root_path, 'static', 'images', 'kenya_logo.png')
-    with open(logo_path, 'rb') as f:
-        encoded = base64.b64encode(f.read()).decode('utf-8')
-    return f"data:image/png;base64,{encoded}"
-
 def admin_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
@@ -500,54 +494,68 @@ def reject_application(id):
 @admin_bp.route('/application/print/<int:id>')
 @admin_required
 def print_application(id):
-    conn = get_mysql_connection()
-    cur = conn.cursor()
-    conn.commit()
-    conn.rollback()
-    cur.execute("""
-        SELECT la.*,
-               COALESCE(s.username, la.name) AS name,
-               COALESCE(s.pno, la.pno) AS pno,
-               CASE
-                   WHEN la.designation LIKE '%%HOD%%'
-                        OR la.designation LIKE '%%Head%%'
-                   THEN 1
-                   ELSE 0
-               END AS is_hod
-        FROM leave_applications la
-        LEFT JOIN staff s ON la.staff_id = s.id
-        WHERE la.id = %s
-    """, (id,))
-    application = cur.fetchone()
-    cur.close()
+    try:
+        conn = get_mysql_connection()
+        cur = conn.cursor()
 
-    if not application:
-        flash('Application not found', 'danger')
+        cur.execute("""
+            SELECT la.*,
+                   COALESCE(s.username, la.name) AS name,
+                   COALESCE(s.pno, la.pno) AS pno,
+                   CASE
+                       WHEN la.designation LIKE '%%HOD%%' OR la.designation LIKE '%%Head%%'
+                       THEN 1
+                       ELSE 0
+                   END AS is_hod
+            FROM leave_applications la
+            LEFT JOIN staff s ON la.staff_id = s.id
+            WHERE la.id = %s
+        """, (id,))
+        application = cur.fetchone()
+        cur.close()
+
+        if not application:
+            flash("Application not found.", "danger")
+            return redirect(url_for('admin.admin_dashboard'))
+
+        if application['status'] != 'approved':
+            flash("Only approved applications can be printed.", "warning")
+            return redirect(url_for('admin.admin_dashboard'))
+
+        # Convert string dates to datetime objects
+        date_fields = ['start_date', 'end_date', 'last_leave_start', 'last_leave_end']
+        for field in date_fields:
+            if application.get(field) and isinstance(application[field], str):
+                try:
+                    application[field] = datetime.strptime(application[field], '%Y-%m-%d').date()
+                except ValueError as e:
+                    current_app.logger.error(f"Date parsing error for {field}: {e}")
+                    application[field] = None
+
+        # Debug: Print application data
+        current_app.logger.info(f"Application data: {application}")
+
+        # Select template
+        template_name = 'admin/pdf_template_hod.html' if application['is_hod'] else 'admin/pdf_template_staff.html'
+
+        # Get logo
+        logo_base64 = current_app.get_logo_base64()
+        if not logo_base64:
+            current_app.logger.warning("Logo not found or could not be loaded")
+
+        # Generate PDF
+        rendered_html = render_template(template_name, app=application, logo_base64=logo_base64)
+        pdf = HTML(string=rendered_html).write_pdf()
+
+        response = make_response(pdf)
+        response.headers['Content-Type'] = 'application/pdf'
+        response.headers['Content-Disposition'] = f'inline; filename=leave_application_{id}.pdf'
+        return response
+
+    except Exception as e:
+        current_app.logger.error(f"PDF generation failed: {str(e)}", exc_info=True)
+        flash("Failed to generate PDF. Check logs for details.", "danger")
         return redirect(url_for('admin.admin_dashboard'))
-
-    if application['status'] != 'approved':
-        flash('Only approved applications can be printed.', 'warning')
-        return redirect(url_for('admin.admin_dashboard'))
-
-    for field in ('start_date', 'end_date', 'last_leave_start', 'last_leave_end', 'created_at'):
-        val = application.get(field)
-        if isinstance(val, str):
-            try:
-                application[field] = datetime.fromisoformat(val)
-            except ValueError:
-                application[field] = None
-
-    template = 'admin/pdf_template_hod.html' if application['is_hod'] else 'admin/pdf_template_staff.html'
-
-        # ✅ Render with request.url_root so logo loads
-    logo_base64 = get_logo_base64()
-    rendered = render_template(template, app=application, logo_base64=logo_base64)
-    pdf = HTML(string=rendered, base_url=request.url_root).write_pdf()
-
-    response = make_response(pdf)
-    response.headers['Content-Type'] = 'application/pdf'
-    response.headers['Content-Disposition'] = f'inline; filename=leave_application_{id}.pdf'
-    return response
 
 @admin_bp.route('/staff/delete/<int:staff_id>', methods=['POST'])
 @admin_required

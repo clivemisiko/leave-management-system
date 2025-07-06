@@ -15,21 +15,6 @@ import os
 import re
 
 # ✅ Function to encode logo to base64
-def get_logo_base64():
-    logo_path = os.path.join(current_app.root_path, 'static', 'images', 'kenya_logo.png')
-
-    if not os.path.exists(logo_path):
-        print("❌ LOGO FILE NOT FOUND:", logo_path)
-        return ""
-
-    try:
-        with open(logo_path, 'rb') as logo_file:
-            encoded = base64.b64encode(logo_file.read()).decode('utf-8')
-        print("✅ LOGO ENCODED SUCCESSFULLY")
-        return f"data:image/png;base64,{encoded}"
-    except Exception as e:
-        print("❌ ERROR READING LOGO FILE:", e)
-        return ""
 
 # Now you can safely use get_mysql_connection() anywhere below in this module.
 
@@ -523,10 +508,12 @@ def create_staff_application():
 @staff_bp.route('/application/print/<int:app_id>')
 @staff_required
 def print_application(app_id):
-    cur = conn = get_mysql_connection(); cur = conn.cursor()
+    conn = get_mysql_connection()
+    cur = conn.cursor()
 
     cur.execute("""
-        SELECT * FROM leave_applications WHERE id = %s AND staff_id = %s
+        SELECT * FROM leave_applications 
+        WHERE id = %s AND staff_id = %s
     """, (app_id, session['staff_id']))
     app = cur.fetchone()
 
@@ -538,24 +525,29 @@ def print_application(app_id):
         flash("You can only print approved leave applications.", "warning")
         return redirect(url_for('staff.staff_dashboard'))
 
+    # Add leave balance
     cur.execute("SELECT leave_balance FROM staff WHERE id = %s", (session['staff_id'],))
     staff_info = cur.fetchone()
     cur.close()
 
     app['leave_balance'] = staff_info['leave_balance'] if staff_info else 'N/A'
 
-    # ✅ Select correct PDF template
+    # Select correct template
     template_name = 'admin/pdf_template_staff.html' if app.get('user_type') == 'Staff' else 'admin/pdf_template_hod.html'
 
-        # ✅ Render PDF with full base_url so logo resolves
-    logo_base64 = get_logo_base64()
-    rendered = render_template(template_name, app=app, logo_base64=logo_base64)
-    pdf = HTML(string=rendered, base_url=request.url_root).write_pdf()
+    # Generate PDF with logo
+    logo_base64 = current_app.get_logo_base64()
+    if not logo_base64:
+            print("⚠️ WARNING: Logo not found or couldn't be loaded")
+            
+    rendered_html = render_template(template_name, app=app, logo_base64=logo_base64)
+    pdf = HTML(string=rendered_html, base_url=request.url_root).write_pdf()
 
     response = make_response(pdf)
     response.headers['Content-Type'] = 'application/pdf'
     response.headers['Content-Disposition'] = f'inline; filename=leave_application_{app_id}.pdf'
     return response
+
 
 @staff_bp.route('/logout')
 def staff_logout():
