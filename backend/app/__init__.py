@@ -10,30 +10,19 @@ load_dotenv()
 
 # ✅ Base64 logo function (global scope so routes can access it)
 def get_logo_base64():
-    # Try multiple possible locations
-    possible_paths = [
-        # Absolute path (development)
-        r"C:\Users\ADMIN\leave_app_system\backend\static\images\kenya_logo.png",
-        # Relative path from __init__.py
-        os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'static', 'images', 'kenya_logo.png')),
-        # Common production path
-        os.path.join(current_app.root_path, 'static', 'images', 'kenya_logo.png')
-    ]
-    
-    for logo_path in possible_paths:
-        try:
-            if os.path.exists(logo_path):
-                with open(logo_path, 'rb') as image_file:
-                    encoded_string = base64.b64encode(image_file.read()).decode('utf-8')
-                    current_app.logger.info(f"✅ Logo found at: {logo_path}")
-                    return f"data:image/png;base64,{encoded_string}"
-            else:
-                current_app.logger.warning(f"⚠️ Logo not found at: {logo_path}")
-        except Exception as e:
-            current_app.logger.error(f"❌ Error loading logo from {logo_path}: {str(e)}")
-    
-    current_app.logger.error("❌ Could not find logo in any of the checked locations")
-    return None
+    logo_path = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)),
+        '..', 'static', 'images', 'kenya_logo.png'
+    )
+    logo_path = os.path.normpath(logo_path)  # Normalize for any OS
+
+    try:
+        with open(logo_path, 'rb') as image_file:
+            encoded = base64.b64encode(image_file.read()).decode('utf-8')
+            return f"data:image/png;base64,{encoded}"
+    except FileNotFoundError:
+        print(f"⚠️ Logo not found at: {logo_path}")
+        return None
 
 
 def create_app():
