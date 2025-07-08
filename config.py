@@ -1,3 +1,4 @@
+# config.py
 import os
 from dotenv import load_dotenv
 
@@ -5,13 +6,11 @@ load_dotenv()
 
 class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY', 'fallback-dev-key')
-    MYSQL_HOST = os.getenv('MYSQL_HOST', 'gateway01.us-west-2.prod.aws.tidbcloud.com')
-    MYSQL_USER = os.getenv('MYSQL_USER', '2T4hhMqwZwwhwJM.root')
-    MYSQL_PASSWORD = os.getenv('MYSQL_PASSWORD', 'na5fF8Gcvr8t5iL0')
-    MYSQL_DB = os.getenv('MYSQL_DB', 'test')
-    MYSQL_PORT = int(os.getenv('MYSQL_PORT', 4000))
-    MYSQL_SSL_DISABLED = False
-    MYSQL_SSL = {"fake_flag_to_enable_tls": True}  # ✅ Required for TiDB Cloud Serverless
+    
+    # ⬇️ PostgreSQL settings for Neon
+    POSTGRES_URI = os.getenv('POSTGRES_URI', 'postgresql://neondb_owner:...your_neon_url_here...')
+    SQLALCHEMY_DATABASE_URI = os.getenv('POSTGRES_URI')
+    SQLALCHEMY_TRACK_MODIFICATIONS = False
 
 class DevelopmentConfig(Config):
     DEBUG = True
