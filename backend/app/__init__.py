@@ -1,10 +1,9 @@
 import os
 import base64
 from datetime import datetime
-from flask import Flask, current_app
+from flask import Flask
 from dotenv import load_dotenv
-from flask_mail import Mail
-from backend.app.extensions import get_mysql_connection, mail
+from backend.app.extensions import db, mail  # ✅ Updated
 
 load_dotenv()
 
@@ -23,7 +22,6 @@ def get_logo_base64():
     except FileNotFoundError:
         print(f"⚠️ Logo not found at: {logo_path}")
         return None
-
 
 def create_app():
     app = Flask(
@@ -44,16 +42,19 @@ def create_app():
     app.config['MAIL_DEFAULT_SENDER'] = os.getenv('MAIL_DEFAULT_SENDER')
     mail.init_app(app)
 
-    # ✅ Database connection check
+    # 🐘 Database Configuration
+    app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('POSTGRES_URI')
+    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+    db.init_app(app)
+
+    # ✅ PostgreSQL connection test
     with app.app_context():
         try:
-            conn = get_mysql_connection()
-            cur = conn.cursor()
-            cur.execute("SHOW TABLES")
-            print("✅ Connected to TiDB. Tables:", cur.fetchall())
-            cur.close()
+            with db.engine.connect() as conn:
+                conn.execute(db.text("SELECT 1"))
+            print("✅ Connected to Neon PostgreSQL.")
         except Exception as e:
-            print("❌ TiDB Connection Error:", e)
+            print("❌ PostgreSQL Connection Error:", e)
 
     # 🌐 Template context: inject current time and logo
     @app.context_processor

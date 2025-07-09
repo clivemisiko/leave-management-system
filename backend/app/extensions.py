@@ -1,12 +1,15 @@
 # backend/app/extensions.py
-
 import pymysql
 import os
 from dotenv import load_dotenv
 from flask_mail import Mail
+from flask_sqlalchemy import SQLAlchemy
+
 
 # ✅ Load environment variables
 load_dotenv()
+
+db = SQLAlchemy()
 
 # ✅ Flask-Mail instance
 mail = Mail()
