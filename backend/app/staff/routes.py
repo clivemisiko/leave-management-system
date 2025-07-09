@@ -8,9 +8,9 @@ from ..utils.email import send_reset_email
 from ..utils.auth import update_password
 from flask_mail import Message
 from weasyprint import HTML, CSS
+from backend.app.models import Staff, LeaveApplication
+from backend.app.extensions import db
 from email_validator import validate_email, EmailNotValidError
-import smtplib
-import base64
 import os
 import re
 
@@ -29,82 +29,59 @@ def get_serializer():
 def get_reset_serializer():
     return URLSafeTimedSerializer(current_app.config['SECRET_KEY'], salt='password-reset')
 
+from functools import wraps
+from flask import session, redirect, url_for, flash
+
 def staff_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
+        print(f"Checking staff login - session: {dict(session)}")  # Debug
         if 'staff_logged_in' not in session:
             flash('Please log in as staff to access this page.', 'danger')
-            return redirect(url_for('staff.staff_login'))
+            return redirect(url_for('staff.staff_login'))  # ✅ this was missing
         return f(*args, **kwargs)
     return decorated_function
+
 
 @staff_bp.route('/dashboard')
 @staff_required
 def staff_dashboard():
-
     if request.referrer and url_for('staff.staff_login') in request.referrer:
         flash('Login successful', 'success')
+
     from collections import Counter
-    from datetime import datetime, date
+    from datetime import datetime
 
     staff_id = session.get('staff_id')
-    cur = conn = get_mysql_connection(); cur = conn.cursor()
+    
+    # ✅ Get staff from DB
+    staff = Staff.query.get(staff_id)
+    current_balance = staff.leave_balance if staff else 0
 
-    # Fetch current leave balance from staff table (don't calculate here)
-    cur.execute("SELECT leave_balance FROM staff WHERE id = %s", (staff_id,))
-    staff_info = cur.fetchone()
-    current_balance = staff_info['leave_balance'] if staff_info else 0
-
-    # Fetch all applications
-    cur.execute("""
-        SELECT 
-            id, name, pno, leave_days, 
-            start_date, end_date, status,
-            submitted_at, approved_at, approved_by,
-            rejected_at, rejected_by
-        FROM leave_applications 
-        WHERE staff_id = %s 
-        ORDER BY submitted_at DESC
-    """, (staff_id,))
-    raw_rows = cur.fetchall()
-    cur.close()
+    # ✅ Fetch leave applications
+    leave_apps = LeaveApplication.query.filter_by(staff_id=staff_id).order_by(LeaveApplication.submitted_at.desc()).all()
 
     applications = []
     status_list = []
 
-    for row in raw_rows:
-        # Safe fallback for missing fields
-        leave_days = row.get('leave_days') or 0
-        start_date = row.get('start_date')
-        end_date = row.get('end_date')
-        submitted_at = row.get('submitted_at')
-
-        # Safe date parsing
-        try:
-            if isinstance(start_date, str):
-                start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
-        except:
-            start_date = None
-
-        try:
-            if isinstance(end_date, str):
-                end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
-        except:
-            end_date = None
-
-        try:
-            if isinstance(submitted_at, str):
-                submitted_at = datetime.strptime(submitted_at, '%Y-%m-%d %H:%M:%S')
-        except:
-            submitted_at = None
-
-        row['leave_days'] = leave_days
-        row['start_date'] = start_date
-        row['end_date'] = end_date
-        row['submitted_at'] = submitted_at
-
+    for app in leave_apps:
+        # Convert fields safely
+        row = {
+            'id': app.id,
+            'name': staff.username,
+            'pno': staff.pno,
+            'leave_days': (app.end_date - app.start_date).days + 1 if app.start_date and app.end_date else 0,
+            'start_date': app.start_date,
+            'end_date': app.end_date,
+            'status': app.status,
+            'submitted_at': app.submitted_at,
+            'approved_at': getattr(app, 'approved_at', None),
+            'approved_by': getattr(app, 'approved_by', None),
+            'rejected_at': getattr(app, 'rejected_at', None),
+            'rejected_by': getattr(app, 'rejected_by', None),
+        }
         applications.append(row)
-        status_list.append(row['status'])
+        status_list.append(app.status)
 
     # Stats
     counts = Counter(status_list)
@@ -120,9 +97,9 @@ def staff_dashboard():
         approved=approved,
         pending=pending,
         rejected=rejected,
-        leave_balance=current_balance  # Use the stored balance directly
-    
+        leave_balance=current_balance
     )
+
 
 @staff_bp.route('/register', methods=['GET', 'POST'])
 def register():
@@ -195,48 +172,56 @@ def register():
 
 @staff_bp.route('/login', methods=['GET', 'POST'])
 def staff_login():
-    session.clear() 
+    session.clear()
+    
     if request.method == 'POST':
-        login_input = request.form['login_input'].strip()  # Can be email or pno
+        login_input = request.form['login_input'].strip()
         password = request.form['password']
         
-        cur = conn = get_mysql_connection()
-        cur = conn.cursor()
+        print(f"\n--- LOGIN ATTEMPT ---")
+        print(f"Login input: {login_input}")
+        print(f"Password: {password}")
+        
         try:
-            # Check if input is email or pno
-            is_email = '@' in login_input
-            
-            if is_email:
-                cur.execute(
-                    "SELECT id, pno, username, password FROM staff WHERE email = %s", 
-                    (login_input,)
-                )
+            # Check which field to query
+            if '@' in login_input:
+                print("Querying by email")
+                staff = Staff.query.filter_by(email=login_input).first()
             else:
-                cur.execute(
-                    "SELECT id, pno, username, password FROM staff WHERE pno = %s", 
-                    (login_input,)
-                )
+                print("Querying by pno")
+                staff = Staff.query.filter_by(pno=login_input).first()
             
-            staff = cur.fetchone()
+            print(f"Found staff: {staff}")
             
-            if staff and check_password_hash(staff['password'], password):
-                session['staff_logged_in'] = True
-                session['staff_id'] = staff['id']
-                session['staff_pno'] = staff['pno']
-                session['staff_name'] = staff['username']
-                return redirect(url_for('staff.staff_dashboard'))
+            if staff is None:
+                print("No staff found")
+                flash('No user found with those credentials', 'danger')
+                return redirect(url_for('staff.staff_login'))
+
+            print(f"Staff password hash: {staff.password}")
+            print(f"Password check result: {check_password_hash(staff.password, password)}")
             
-            flash('Invalid login credentials', 'danger')
+            if not check_password_hash(staff.password, password):
+                flash('Incorrect password', 'danger')
+                return redirect(url_for('staff.staff_login'))
+            
+            # Set session
+            session['staff_logged_in'] = True
+            session['staff_id'] = staff.id
+            session['staff_pno'] = staff.pno
+            session['staff_name'] = staff.username
+            
+            print(f"Session set: {dict(session)}")
+            
+            return redirect(url_for('staff.staff_dashboard'))
+        
         except Exception as e:
+            print(f"Login error: {str(e)}")
             current_app.logger.error(f"Login error: {str(e)}")
-            flash('Login error', 'danger')
-        finally:
-            cur.close()
+            flash('Something went wrong during login.', 'danger')
     
     return render_template('staff/login.html')
 
-
-from flask_mail import Message
 
 @staff_bp.route('/forgot-password', methods=['GET', 'POST'])
 def forgot_password():
