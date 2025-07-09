@@ -3,7 +3,7 @@ import base64
 from datetime import datetime
 from flask import Flask
 from dotenv import load_dotenv
-from backend.app.extensions import db, mail  # ✅ Updated
+from backend.app.extensions import mail  # ✅ Only mail now
 
 load_dotenv()
 
@@ -13,7 +13,7 @@ def get_logo_base64():
         os.path.dirname(os.path.abspath(__file__)),
         '..', 'static', 'images', 'kenya_logo.png'
     )
-    logo_path = os.path.normpath(logo_path)  # Normalize for any OS
+    logo_path = os.path.normpath(logo_path)
 
     try:
         with open(logo_path, 'rb') as image_file:
@@ -30,7 +30,6 @@ def create_app():
         static_folder=os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'static'))
     )
     app.get_logo_base64 = get_logo_base64
-
     app.secret_key = os.urandom(24)
 
     # 📧 Mail Configuration
@@ -42,19 +41,8 @@ def create_app():
     app.config['MAIL_DEFAULT_SENDER'] = os.getenv('MAIL_DEFAULT_SENDER')
     mail.init_app(app)
 
-    # 🐘 Database Configuration
-    app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('POSTGRES_URI')
-    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-    db.init_app(app)
-
-    # ✅ PostgreSQL connection test
-    with app.app_context():
-        try:
-            with db.engine.connect() as conn:
-                conn.execute(db.text("SELECT 1"))
-            print("✅ Connected to Neon PostgreSQL.")
-        except Exception as e:
-            print("❌ PostgreSQL Connection Error:", e)
+    # ✅ Using PyMySQL directly — skipping SQLAlchemy
+    print("✅ Using PyMySQL. Skipping SQLAlchemy config.")
 
     # 🌐 Template context: inject current time and logo
     @app.context_processor

@@ -51,55 +51,78 @@ def staff_dashboard():
 
     from collections import Counter
     from datetime import datetime
+    import pymysql
+    from backend.app.extensions import get_mysql_connection
 
     staff_id = session.get('staff_id')
-    
-    # ✅ Get staff from DB
-    staff = Staff.query.get(staff_id)
-    current_balance = staff.leave_balance if staff else 0
 
-    # ✅ Fetch leave applications
-    leave_apps = LeaveApplication.query.filter_by(staff_id=staff_id).order_by(LeaveApplication.submitted_at.desc()).all()
+    try:
+        conn = get_mysql_connection()
+        cur = conn.cursor(pymysql.cursors.DictCursor)
 
-    applications = []
-    status_list = []
+        # ✅ Get staff info
+        cur.execute("SELECT username, pno, leave_balance FROM staff WHERE id = %s", (staff_id,))
+        staff = cur.fetchone()
+        current_balance = staff['leave_balance'] if staff else 0
 
-    for app in leave_apps:
-        # Convert fields safely
-        row = {
-            'id': app.id,
-            'name': staff.username,
-            'pno': staff.pno,
-            'leave_days': (app.end_date - app.start_date).days + 1 if app.start_date and app.end_date else 0,
-            'start_date': app.start_date,
-            'end_date': app.end_date,
-            'status': app.status,
-            'submitted_at': app.submitted_at,
-            'approved_at': getattr(app, 'approved_at', None),
-            'approved_by': getattr(app, 'approved_by', None),
-            'rejected_at': getattr(app, 'rejected_at', None),
-            'rejected_by': getattr(app, 'rejected_by', None),
-        }
-        applications.append(row)
-        status_list.append(app.status)
+        # ✅ Get leave applications for staff
+        cur.execute("""
+            SELECT * FROM leave_applications 
+            WHERE staff_id = %s 
+            ORDER BY submitted_at DESC
+        """, (staff_id,))
+        leave_apps = cur.fetchall()
+        cur.close()
+        conn.close()
 
-    # Stats
-    counts = Counter(status_list)
-    total = len(applications)
-    approved = counts.get('approved', 0)
-    pending = counts.get('pending', 0)
-    rejected = counts.get('rejected', 0)
+        applications = []
+        status_list = []
 
-    return render_template(
-        'staff/dashboard.html',
-        applications=applications,
-        total=total,
-        approved=approved,
-        pending=pending,
-        rejected=rejected,
-        leave_balance=current_balance
-    )
+        for app in leave_apps:
+            leave_days = 0
+            try:
+                if app['start_date'] and app['end_date']:
+                    leave_days = (app['end_date'] - app['start_date']).days + 1
+            except Exception:
+                pass  # fallback to 0
 
+            applications.append({
+                'id': app['id'],
+                'name': staff['username'],
+                'pno': staff['pno'],
+                'leave_days': leave_days,
+                'start_date': app['start_date'],
+                'end_date': app['end_date'],
+                'status': app['status'],
+                'submitted_at': app['submitted_at'],
+                'approved_at': app.get('approved_at'),
+                'approved_by': app.get('approved_by'),
+                'rejected_at': app.get('rejected_at'),
+                'rejected_by': app.get('rejected_by'),
+            })
+            status_list.append(app['status'])
+
+        # ✅ Dashboard stats
+        counts = Counter(status_list)
+        total = len(applications)
+        approved = counts.get('approved', 0)
+        pending = counts.get('pending', 0)
+        rejected = counts.get('rejected', 0)
+
+        return render_template(
+            'staff/dashboard.html',
+            applications=applications,
+            total=total,
+            approved=approved,
+            pending=pending,
+            rejected=rejected,
+            leave_balance=current_balance
+        )
+
+    except Exception as e:
+        current_app.logger.error(f"Dashboard error: {str(e)}")
+        flash("Something went wrong while loading your dashboard.", "danger")
+        return redirect(url_for('staff.staff_login'))
 
 @staff_bp.route('/register', methods=['GET', 'POST'])
 def register():
@@ -173,54 +196,64 @@ def register():
 @staff_bp.route('/login', methods=['GET', 'POST'])
 def staff_login():
     session.clear()
-    
+
     if request.method == 'POST':
         login_input = request.form['login_input'].strip()
         password = request.form['password']
-        
+
         print(f"\n--- LOGIN ATTEMPT ---")
         print(f"Login input: {login_input}")
         print(f"Password: {password}")
-        
+
         try:
-            # Check which field to query
+            from backend.app.extensions import get_mysql_connection
+            import pymysql
+            from werkzeug.security import check_password_hash
+
+            conn = get_mysql_connection()
+            cur = conn.cursor(pymysql.cursors.DictCursor)
+
+            # ✅ Determine login method
             if '@' in login_input:
                 print("Querying by email")
-                staff = Staff.query.filter_by(email=login_input).first()
+                cur.execute("SELECT * FROM staff WHERE email = %s", (login_input,))
             else:
                 print("Querying by pno")
-                staff = Staff.query.filter_by(pno=login_input).first()
-            
+                cur.execute("SELECT * FROM staff WHERE pno = %s", (login_input,))
+
+            staff = cur.fetchone()
+            cur.close()
+            conn.close()
+
             print(f"Found staff: {staff}")
-            
-            if staff is None:
-                print("No staff found")
+
+            if not staff:
                 flash('No user found with those credentials', 'danger')
                 return redirect(url_for('staff.staff_login'))
 
-            print(f"Staff password hash: {staff.password}")
-            print(f"Password check result: {check_password_hash(staff.password, password)}")
-            
-            if not check_password_hash(staff.password, password):
+            # ✅ Password check
+            print(f"Staff password hash: {staff['password']}")
+            if not check_password_hash(staff['password'], password):
                 flash('Incorrect password', 'danger')
                 return redirect(url_for('staff.staff_login'))
-            
-            # Set session
+
+            # ✅ Set session
             session['staff_logged_in'] = True
-            session['staff_id'] = staff.id
-            session['staff_pno'] = staff.pno
-            session['staff_name'] = staff.username
-            
+            session['staff_id'] = staff['id']
+            session['staff_pno'] = staff['pno']
+            session['staff_name'] = staff['username']
+
             print(f"Session set: {dict(session)}")
-            
+
             return redirect(url_for('staff.staff_dashboard'))
-        
+
         except Exception as e:
             print(f"Login error: {str(e)}")
             current_app.logger.error(f"Login error: {str(e)}")
             flash('Something went wrong during login.', 'danger')
-    
+
     return render_template('staff/login.html')
+
 
 
 @staff_bp.route('/forgot-password', methods=['GET', 'POST'])
