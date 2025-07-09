@@ -1,7 +1,7 @@
 from flask import Blueprint, current_app, render_template, request, redirect, url_for, flash, session, make_response
 from werkzeug.security import check_password_hash
 from weasyprint import HTML
-from backend.app.extensions import get_mysql_connection, mail
+from backend.app.extensions import get_mysql_connection, mail, pymysql
 import os
 from functools import wraps
 from datetime import datetime
@@ -83,29 +83,46 @@ def view_staff_members():
 def delete_staff_user(staff_id):
     try:
         conn = get_mysql_connection()
-        cur = conn.cursor()
-        cur.execute("SELECT * FROM leave_applications")
-        data = cur.fetchall()
+        cur = conn.cursor(pymysql.cursors.DictCursor)
 
+        # Confirm staff exists
+        cur.execute("SELECT * FROM staff WHERE id = %s", (staff_id,))
+        staff = cur.fetchone()
+        if not staff:
+            flash("Staff member not found.", "danger")
+            return redirect(url_for('admin.view_staff_members'))
+
+        # Check for pending/approved applications
+        cur.execute("""
+            SELECT COUNT(*) AS count FROM leave_applications 
+            WHERE staff_id = %s AND status IN ('pending', 'approved')
+        """, (staff_id,))
+        result = cur.fetchone()
+        if result and result['count'] > 0:
+            flash("Cannot delete staff with pending or approved applications.", "warning")
+            return redirect(url_for('admin.view_staff_members'))
+
+        # ✅ Step 1: Delete related applications first
+        cur.execute("DELETE FROM leave_applications WHERE staff_id = %s", (staff_id,))
+        
+        # ✅ Step 2: Delete the staff record
         cur.execute("DELETE FROM staff WHERE id = %s", (staff_id,))
-        conn = get_mysql_connection()
-
-        cur = conn.cursor()
-
         conn.commit()
-        conn.rollback()
 
+        flash("Staff and their applications deleted successfully.", "success")
 
-        cur.close()
-        flash("Staff user deleted successfully.", "success")
     except Exception as e:
-        flash(f"Error deleting staff user: {str(e)}", "danger")
+        error_message = f"Error deleting staff: {str(e)}"
+        current_app.logger.error(error_message)
+        flash(error_message, "danger")
+    finally:
+        cur.close()
+        conn.close()
+
     return redirect(url_for('admin.view_staff_members'))
 
+
 # Other routes like dashboard, application CRUD, approve/reject, PDF generation continue below...
-
-
-
 @admin_bp.route('/application/new', methods=['GET', 'POST'])
 @admin_required
 def create_application():
