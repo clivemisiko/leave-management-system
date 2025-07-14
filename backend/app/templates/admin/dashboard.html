@@ -322,27 +322,34 @@
     <div class="card micde-card">
        <div class="card-header micde-card-header d-flex justify-content-between align-items-center">
     <h5 class="mb-0"><i class="fas fa-clipboard-list me-2"></i>Leave Applications</h5>
-    <div class="search-filter-container">
-        <form method="get" class="d-inline me-1">
-            <div class="input-group input-group-sm">
-                <input type="text" name="search" class="form-control" placeholder="Search..." value="{{ request.args.get('search', '') }}">
-                <button class="btn btn-outline-light" type="submit">
-                    <i class="fas fa-search"></i>
-                </button>
-            </div>
-        </form>
-        <div class="dropdown d-inline">
-            <button class="btn btn-sm btn-outline-light dropdown-toggle" type="button" id="dropdownMenuButton" data-bs-toggle="dropdown">
-                <i class="fas fa-filter"></i> Filter
+    <div class="search-filter-container d-flex gap-2 align-items-center">
+    <form method="get" class="d-inline me-1">
+        <div class="input-group input-group-sm">
+            <input type="text" name="search" class="form-control" placeholder="Search..." value="{{ request.args.get('search', '') }}">
+            <button class="btn btn-outline-light" type="submit">
+                <i class="fas fa-search"></i>
             </button>
-            <ul class="dropdown-menu dropdown-menu-end">
-                <li><a class="dropdown-item" href="?status=all">All Applications</a></li>
-                <li><hr class="dropdown-divider"></li>
-                <li><a class="dropdown-item" href="?status=approved">Approved</a></li>
-                <li><a class="dropdown-item" href="?status=pending">Pending</a></li>
-                <li><a class="dropdown-item" href="?status=rejected">Rejected</a></li>
-            </ul>
         </div>
+    </form>
+    <div class="dropdown d-inline me-1">
+        <button class="btn btn-sm btn-outline-light dropdown-toggle" type="button" id="dropdownMenuButton" data-bs-toggle="dropdown">
+            <i class="fas fa-filter"></i> Filter
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end">
+            <li><a class="dropdown-item" href="?status=all">All Applications</a></li>
+            <li><hr class="dropdown-divider"></li>
+            <li><a class="dropdown-item" href="?status=approved">Approved</a></li>
+            <li><a class="dropdown-item" href="?status=pending">Pending</a></li>
+            <li><a class="dropdown-item" href="?status=rejected">Rejected</a></li>
+        </ul>
+    </div>
+
+    <!-- ✅ Export to Excel Button -->
+    <a href="{{ url_for('admin.export_leave_excel') }}" class="btn btn-sm btn-outline-success">
+        <i class="fas fa-file-excel me-1"></i> Export Excel
+    </a>
+</div>
+
     </div>
 </div>
         <div class="card-body">
@@ -385,12 +392,15 @@
                                     Approved by {{ app.approved_by }}<br>
                                     {{ app.approved_at.strftime('%b %d, %Y %I:%M %p') if app.approved_at }}
                                 </small>
-                                {% elif app.status == 'rejected' and app.rejected_by %}
-                                <small class="d-block text-muted mt-1">
-                                    Rejected by {{ app.rejected_by }}<br>
-                                    {{ app.rejected_at.strftime('%b %d, %Y %I:%M %p') if app.rejected_at }}
-                                </small>
-                                {% endif %}
+                               {% elif app.status == 'rejected' and app.rejected_by %}
+                        <small class="d-block text-muted mt-1">
+                            Rejected by {{ app.rejected_by }}<br>
+                            {{ app.rejected_at.strftime('%b %d, %Y %I:%M %p') if app.rejected_at }}<br>
+                            {% if app.rejection_reason %}
+                            <strong>Reason:</strong> {{ app.rejection_reason }}
+                            {% endif %}
+                        </small>
+                        {% endif %}
                             </td>
                             <td>
                                 <div class="btn-group btn-group-sm" role="group">
@@ -425,6 +435,7 @@
 </div>
 
 <!-- View Application Modals -->
+
 {% for app in applications %}
 <div class="modal fade" id="viewModal{{ app.id }}" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg">
@@ -453,30 +464,44 @@
                     </div>
                 </div>
                 <div class="row">
-                    <div class="col-md-6">
-                        <h6>Dates</h6>
-                        <p><strong>Start:</strong> {{ app.start_date.strftime('%A, %B %d, %Y') if app.start_date else 'N/A' }}</p>
-                        <p><strong>End:</strong> {{ app.end_date.strftime('%A, %B %d, %Y') if app.end_date else 'N/A' }}</p>
-                    </div>
-                    <div class="col-md-6">
-                        <h6>Actions</h6>
-                        <div class="btn-group mt-2">
-                            <a href="{{ url_for('admin.print_application', id=app.id) }}" class="btn btn-sm btn-micde">
-                                <i class="fas fa-print"></i> Print
-                            </a>
-                            {% if app.status != 'approved' %}
-                            <a href="{{ url_for('admin.approve_application', app_id=app.id) }}" class="btn btn-sm btn-outline-success">
-                                <i class="fas fa-check-circle"></i> Approve
-                            </a>
-                            {% endif %}
-                            {% if app.status != 'rejected' %}
-                            <a href="{{ url_for('admin.reject_application', id=app.id) }}" class="btn btn-sm btn-outline-danger">
-                                <i class="fas fa-times-circle"></i> Reject
-                            </a>
-                            {% endif %}
-                        </div>
-                    </div>
-                </div>
+    <div class="col-md-6">
+        <h6>Dates</h6>
+        <p><strong>Start:</strong> {{ app.start_date.strftime('%A, %B %d, %Y') if app.start_date else 'N/A' }}</p>
+        <p><strong>End:</strong> {{ app.end_date.strftime('%A, %B %d, %Y') if app.end_date else 'N/A' }}</p>
+    </div>
+    <div class="col-md-6">
+        <h6>Actions</h6>
+        <div class="btn-group mt-2">
+            <a href="{{ url_for('admin.print_application', id=app.id) }}" class="btn btn-sm btn-micde">
+                <i class="fas fa-print"></i> Print
+            </a>
+            {% if app.status != 'approved' %}
+            <a href="{{ url_for('admin.approve_application', app_id=app.id) }}" class="btn btn-sm btn-outline-success">
+                <i class="fas fa-check-circle"></i> Approve
+            </a>
+            {% endif %}
+            {% if app.status != 'rejected' %}
+            <button class="btn btn-outline-danger" title="Reject" 
+        data-bs-toggle="modal" data-bs-target="#rejectModal{{ app.id }}">
+    <i class="fas fa-times-circle"></i>
+</button>
+            {% endif %}
+        </div>
+    </div>
+
+{% if app.supporting_doc %}
+<div class="mt-3">
+    <h6>Supporting Document</h6>
+    <a href="{{ url_for('admin.download_uploaded_document', filename=app.supporting_doc) }}" 
+       class="btn btn-outline-primary btn-sm" 
+       download="{{ app.supporting_doc.split('_')[-1] }}">
+        <i class="fas fa-file-download me-1"></i> Download {{ app.supporting_doc.split('_')[-1] }}
+    </a>
+</div>
+{% endif %}
+
+</div>
+
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
@@ -486,6 +511,31 @@
 </div>
 
 <!-- Delete Confirmation Modals -->
+ <!-- Add this with your other modals -->
+<div class="modal fade" id="rejectModal{{ app.id }}" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">Reject Application</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="POST" action="{{ url_for('admin.reject_application', id=app.id) }}">
+                <div class="modal-body">
+                    <p>You are about to reject {{ app.name }}'s leave application.</p>
+                    <div class="mb-3">
+                        <label for="rejection_reason{{ app.id }}" class="form-label">Reason:</label>
+                        <textarea class="form-control" id="rejection_reason{{ app.id }}" 
+                                  name="rejection_reason" rows="3" required></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-danger">Confirm Rejection</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 <div class="modal fade" id="deleteModal{{ app.id }}" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">

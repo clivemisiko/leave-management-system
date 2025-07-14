@@ -1,0 +1,78 @@
+{% extends 'staff/base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="card shadow">
+        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+            <h4 class="mb-0"><i class="fas fa-eye me-2"></i>View Leave Application</h4>
+            <a href="{{ url_for('staff.staff_dashboard') }}" class="btn btn-sm btn-light">
+                <i class="fas fa-arrow-left me-1"></i> Back to Dashboard
+            </a>
+        </div>
+        <div class="card-body">
+            {% if application %}
+            <dl class="row">
+                <dt class="col-sm-3">Name</dt>
+                <dd class="col-sm-9">{{ application.name }}</dd>
+
+                <dt class="col-sm-3">P/No</dt>
+                <dd class="col-sm-9">{{ application.pno }}</dd>
+
+                <dt class="col-sm-3">Designation</dt>
+                <dd class="col-sm-9">{{ application.designation }}</dd>
+
+                <dt class="col-sm-3">Leave Type</dt>
+                <dd class="col-sm-9">{{ application.leave_type }}</dd>
+
+                <dt class="col-sm-3">Start Date</dt>
+                <dd class="col-sm-9">{{ application.start_date.strftime('%b %d, %Y') }}</dd>
+
+                <dt class="col-sm-3">End Date</dt>
+                <dd class="col-sm-9">{{ application.end_date.strftime('%b %d, %Y') }}</dd>
+
+                <dt class="col-sm-3">Leave Days</dt>
+                <dd class="col-sm-9">{{ application.leave_days }}</dd>
+
+                <dt class="col-sm-3">Contact Address</dt>
+                <dd class="col-sm-9">{{ application.contact_address }}</dd>
+
+                <dt class="col-sm-3">Emergency Contact</dt>
+                <dd class="col-sm-9">{{ application.contact_tel }}</dd>
+
+                <dt class="col-sm-3">Status</dt>
+                <dd class="col-sm-9">
+                    <span class="badge bg-{% if application.status == 'approved' %}success{% elif application.status == 'rejected' %}danger{% else %}warning{% endif %}">
+                        {{ application.status|capitalize }}
+                    </span>
+                </dd>
+
+                {% if application.supporting_doc %}
+                <dt class="col-sm-3">Supporting Document</dt>
+                <dd class="col-sm-9">
+                    <a href="{{ url_for('static', filename=application.supporting_doc) }}" target="_blank">
+                        <i class="fas fa-download me-1"></i> Download Document
+                    </a>
+                </dd>
+                {% endif %}
+
+                {% if application.status == 'approved' %}
+                <dt class="col-sm-3">Approved By</dt>
+                <dd class="col-sm-9">{{ application.approved_by }}</dd>
+
+                <dt class="col-sm-3">Approved At</dt>
+                <dd class="col-sm-9">{{ application.approved_at.strftime('%b %d, %Y %I:%M %p') if application.approved_at }}</dd>
+                {% elif application.status == 'rejected' %}
+                <dt class="col-sm-3">Rejected By</dt>
+                <dd class="col-sm-9">{{ application.rejected_by }}</dd>
+
+                <dt class="col-sm-3">Rejected At</dt>
+                <dd class="col-sm-9">{{ application.rejected_at.strftime('%b %d, %Y %I:%M %p') if application.rejected_at }}</dd>
+                {% endif %}
+            </dl>
+            {% else %}
+            <div class="alert alert-danger">Application not found.</div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

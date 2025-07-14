@@ -31,6 +31,7 @@ def create_app():
     )
     app.get_logo_base64 = get_logo_base64
     app.secret_key = os.urandom(24)
+    app.config['MAX_CONTENT_LENGTH'] = 2 * 1024 * 1024
 
     # 📧 Mail Configuration
     app.config['MAIL_SERVER'] = 'smtp.gmail.com'

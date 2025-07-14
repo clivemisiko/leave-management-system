@@ -6,6 +6,10 @@ import os
 from functools import wraps
 from datetime import datetime
 import base64
+import pandas as pd
+from flask import make_response
+import pymysql
+from flask import send_from_directory, abort
 
 admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
 
@@ -220,9 +224,8 @@ def admin_dashboard(status_filter=None):
 
     conn = get_mysql_connection()
     cur = conn.cursor()
-    conn.commit()
-    conn.rollback()
 
+    # ✅ Base query now includes supporting_doc
     base_query = """
     SELECT 
         la.id,
@@ -238,7 +241,8 @@ def admin_dashboard(status_filter=None):
         la.approved_at,
         la.rejected_by,
         la.rejected_at,
-        la.created_at
+        la.created_at,
+        la.supporting_doc  -- ✅ this line added
     FROM leave_applications la
     LEFT JOIN staff s ON la.staff_id = s.id
     """
@@ -265,7 +269,7 @@ def admin_dashboard(status_filter=None):
     cur.execute(query, tuple(params))
     applications = cur.fetchall()
 
-    # ✅ Fetch staff list for the staff section
+    # ✅ Staff list for staff section
     cur.execute("SELECT * FROM staff ORDER BY id DESC")
     staff_list = cur.fetchall()
 
@@ -274,7 +278,6 @@ def admin_dashboard(status_filter=None):
             try:
                 staff['date_created'] = datetime.strptime(staff['date_created'], '%Y-%m-%d %H:%M:%S')
             except ValueError:
-                # Fallback in case time format is different
                 staff['date_created'] = None
 
     cur.close()
@@ -284,6 +287,7 @@ def admin_dashboard(status_filter=None):
         staff_list=staff_list,
         current_filter=status_filter
     )
+
 
 @admin_bp.route('/application/edit/<int:id>', methods=['GET', 'POST'])
 @admin_required
@@ -392,121 +396,148 @@ def delete_application(id):
 @admin_bp.route('/approve/<int:app_id>')
 @admin_required
 def approve_application(app_id):
-    
     try:
+        from backend.app.utils.email import send_email
+        from backend.app.utils.audit import log_action  # ✅ Log import
+
         conn = get_mysql_connection()
-        cur = conn.cursor()
-        conn.commit()
-                
-        # 1. Get application details
+        cur = conn.cursor(pymysql.cursors.DictCursor)
+
         cur.execute("""
-            SELECT staff_id, leave_days, status 
-            FROM leave_applications 
-            WHERE id = %s
+            SELECT staff_id, leave_days, status FROM leave_applications WHERE id = %s
         """, (app_id,))
         application = cur.fetchone()
-        
+
         if not application:
             flash('Application not found', 'danger')
             return redirect(url_for('admin.admin_dashboard'))
-        
-        # 2. Check if already approved
+
         if application['status'] == 'approved':
             flash('Application already approved', 'info')
             return redirect(url_for('admin.admin_dashboard'))
-        
-        # 3. Verify staff exists and has enough balance
-        if application['staff_id']:
-            cur.execute("""
-                SELECT leave_balance FROM staff 
-                WHERE id = %s FOR UPDATE
-            """, (application['staff_id'],))
-            staff = cur.fetchone()
-            
-            if not staff:
-                flash('Staff record not found', 'danger')
-                return redirect(url_for('admin.admin_dashboard'))
-                
-            if staff['leave_balance'] < application['leave_days']:
-                flash('Insufficient leave balance', 'warning')
-                return redirect(url_for('admin.admin_dashboard'))
-        
-        # 4. Process approval
-        if application['staff_id']:
-            cur.execute("""
-                UPDATE staff 
-                SET leave_balance = leave_balance - %s 
-                WHERE id = %s
-            """, (application['leave_days'], application['staff_id']))
-        
+
+        cur.execute("""
+            SELECT leave_balance, email, username FROM staff WHERE id = %s FOR UPDATE
+        """, (application['staff_id'],))
+        staff = cur.fetchone()
+
+        if not staff:
+            flash('Staff record not found', 'danger')
+            return redirect(url_for('admin.admin_dashboard'))
+
+        if staff['leave_balance'] < application['leave_days']:
+            flash('Insufficient leave balance', 'warning')
+            return redirect(url_for('admin.admin_dashboard'))
+
+        cur.execute("""
+            UPDATE staff SET leave_balance = leave_balance - %s WHERE id = %s
+        """, (application['leave_days'], application['staff_id']))
+
         cur.execute("""
             UPDATE leave_applications 
-            SET status = 'approved',
-                approved_at = NOW(),
-                approved_by = %s
+            SET status = 'approved', approved_at = NOW(), approved_by = %s 
             WHERE id = %s
         """, (session['admin_username'], app_id))
-        
-        conn = get_mysql_connection()
-
-        cur = conn.cursor()
 
         conn.commit()
-        conn.rollback()
 
+        # ✅ Audit Log
+        log_action(
+            action=f"Admin {session['admin_username']} approved leave ID {app_id}",
+            admin_username=session['admin_username']
+        )
+
+        # ✅ Email to staff
+        send_email(
+            subject="Leave Approved",
+            recipients=[staff['email']],
+            body=f"Hello {staff['username']},\n\nYour leave request has been approved. Kindly login and print your leave form!"
+        )
 
         flash('Application approved', 'success')
-        
-    except Exception as e:
-        conn = get_mysql_connection()
-        cur = conn.cursor()
-        conn.commit()
-        conn.rollback()
 
+    except Exception as e:
+        if conn:
+            conn.rollback()
         flash(f'Approval failed: {str(e)}', 'danger')
-        if current_app:  # Safety check
+        if current_app:
             current_app.logger.error(f"Approval error: {str(e)}")
-        else:
-            print(f"Approval error: {str(e)}")  # Fallback logging
-            
+
     finally:
         cur.close()
-    
+
     return redirect(url_for('admin.admin_dashboard'))
 
-@admin_bp.route('/application/reject/<int:id>')
+
+
+@admin_bp.route('/application/reject/<int:id>', methods=['GET', 'POST'])
 @admin_required
 def reject_application(id):
-    try:
-        conn = get_mysql_connection()
-        cur = conn.cursor()
-        cur.execute("SELECT * FROM leave_applications")
-        data = cur.fetchall()
+    if request.method == 'POST':
+        try:
+            rejection_reason = request.form.get('rejection_reason', '').strip()
+            if not rejection_reason:
+                flash('Please provide a rejection reason', 'danger')
+                return redirect(url_for('admin.reject_application', id=id))
 
-        cur.execute("""
+            conn = get_mysql_connection()
+            cur = conn.cursor(pymysql.cursors.DictCursor)
+
+            # Fetch application and staff info
+            cur.execute("""
+                SELECT la.*, s.email, s.username 
+                FROM leave_applications la
+                LEFT JOIN staff s ON la.staff_id = s.id
+                WHERE la.id = %s AND la.status = 'pending'
+            """, (id,))
+            application = cur.fetchone()
+
+            if not application:
+                flash('Application not found or already processed', 'danger')
+                return redirect(url_for('admin.admin_dashboard'))
+
+            # Update application with rejection details
+            cur.execute("""
                 UPDATE leave_applications SET 
-            status = 'rejected',
-            rejected_by = %s,
-            rejected_at = %s
-            WHERE id = %s AND status = 'pending'
-        """, (session['admin_username'], datetime.now(), id))
-        conn = get_mysql_connection()
+                    status = 'rejected',
+                    rejected_by = %s,
+                    rejected_at = NOW(),
+                    rejection_reason = %s
+                WHERE id = %s
+            """, (session['admin_username'], rejection_reason, id))
 
-        cur = conn.cursor()
+            conn.commit()
 
-        conn.commit()
-        conn.rollback()
+            # Send email notification if staff exists
+            if application.get('email'):
+                send_email(
+                    subject="Leave Application Rejected",
+                    recipients=[application['email']],
+                    body=f"""Hello {application['username']},
 
+Your leave application from {application['start_date']} to {application['end_date']} 
+has been rejected.
 
-        flash('Application rejected', 'warning')
-    except Exception as e:
-        conn = get_mysql_connection()
-        cur = conn.cursor()
-        conn.commit()
-        flash(f'Error rejecting application: {str(e)}', 'danger')
-    finally:
-        cur.close()
-    return redirect(url_for('admin.admin_dashboard'))
+Reason: {rejection_reason}
+
+Please contact HR if you have any questions.
+"""
+                )
+
+            flash('Application rejected with reason sent to staff', 'success')
+            return redirect(url_for('admin.admin_dashboard'))
+
+        except Exception as e:
+            conn.rollback()
+            current_app.logger.error(f"Rejection error: {str(e)}")
+            flash(f'Error rejecting application: {str(e)}', 'danger')
+            return redirect(url_for('admin.admin_dashboard'))
+        finally:
+            if 'cur' in locals():
+                cur.close()
+
+    # GET request - show rejection form
+    return render_template('admin/reject_application.html', application_id=id)
 
 @admin_bp.route('/application/print/<int:id>')
 @admin_required
@@ -617,3 +648,74 @@ def admin_home_redirect():
     if 'admin_logged_in' in session:
         return redirect(url_for('admin.admin_dashboard'))
     return redirect(url_for('main.home'))
+
+@admin_bp.route('/audit-log')
+@admin_required
+def view_audit_log():
+    conn = get_mysql_connection()
+    cur = conn.cursor(pymysql.cursors.DictCursor)
+    cur.execute("SELECT * FROM activity_logs ORDER BY timestamp DESC LIMIT 100")
+    logs = cur.fetchall()
+    cur.close()
+    return render_template('admin/audit_log.html', logs=logs)
+
+@admin_bp.route('/export/excel')
+@admin_required
+def export_leave_excel():
+  
+    conn = get_mysql_connection()
+    cur = conn.cursor(pymysql.cursors.DictCursor)
+
+    # ✅ Fetch all leave applications
+    cur.execute("""
+        SELECT id, name, pno, designation, leave_type, leave_days, start_date, end_date, 
+               status, approved_by, rejected_by, submitted_at, approved_at, rejected_at 
+        FROM leave_applications ORDER BY submitted_at DESC
+    """)
+    data = cur.fetchall()
+
+    if not data:
+        flash('No data found to export.', 'warning')
+        return redirect(url_for('admin.admin_dashboard'))
+
+    # ✅ Convert to DataFrame
+    df = pd.DataFrame(data)
+
+    # ✅ Create Excel file in memory
+    from io import BytesIO
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df.to_excel(writer, index=False, sheet_name='LeaveApplications')
+
+    # ✅ Send as response
+    output.seek(0)
+    response = make_response(output.read())
+    response.headers["Content-Disposition"] = "attachment; filename=leave_applications.xlsx"
+    response.headers["Content-type"] = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    return response
+
+@admin_bp.route('/download/<path:filename>')
+@admin_required
+def download_uploaded_document(filename):
+    try:
+        filename = filename.replace('\\', '/')  # 🔥 normalize Windows slashes
+
+        # Security check - prevent directory traversal
+        if '..' in filename or filename.startswith('/'):
+            abort(404)
+            
+        # Extract just the filename part (remove 'uploads/' if present)
+        clean_filename = filename.split('/')[-1] if '/' in filename else filename
+        
+        uploads_folder = os.path.join(current_app.static_folder, 'uploads')
+        file_path = os.path.join(uploads_folder, clean_filename)
+        
+        if not os.path.exists(file_path):
+            current_app.logger.error(f"File not found: {file_path}")
+            abort(404)
+            
+        return send_from_directory(uploads_folder, clean_filename, as_attachment=True)
+        
+    except Exception as e:
+        current_app.logger.error(f"Download error: {str(e)}")
+        abort(404)

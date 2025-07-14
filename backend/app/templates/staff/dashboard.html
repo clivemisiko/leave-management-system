@@ -144,6 +144,9 @@
     height: 3px;
     background-color: var(--ict-dark-blue);
 }
+.fa-file-pdf { color: #d9534f; }
+    .fa-file-word { color: #0275d8; }
+    .fa-file-image { color: #5cb85c; }
 </style>
 
 <div class="container-fluid px-4">
@@ -269,87 +272,131 @@
         </div>
     </div>
 
-    <!-- Applications Table -->
-    <div class="card ict-card">
-        <div class="card-header ict-card-header">
-            <h5 class="mb-0"><i class="fas fa-clipboard-list me-2"></i>My Leave Applications</h5>
-        </div>
-        <div class="card-body">
-            <div class="table-responsive">
-                <table class="table table-hover">
-                    <thead>
-                        <tr>
-                            <th>#</th>
-                            <th>Leave Days</th>
-                            <th>Period</th>
-                            <th>Status</th>
-                            <th>Applied On</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for app in applications %}
-                        <tr>
-                            <td>{{ loop.index }}</td>
-                            <td>{{ app.leave_days or 0 }} day(s)</td>
-                            <td>
-                                {% if app.start_date and app.end_date %}
-                                    {{ app.start_date.strftime('%b %d, %Y') }} to {{ app.end_date.strftime('%b %d, %Y') }}<br>
-                                    <small class="text-muted">{{ (app.end_date - app.start_date).days + 1 }} total days</small>
-                                {% else %}
-                                    <span class="text-danger">Invalid leave dates</span>
-                                {% endif %}
-                            </td>
-                            <td>
-                                <span class="status-badge bg-{% if app.status == 'approved' %}success{% elif app.status == 'rejected' %}danger{% else %}warning{% endif %}">
-                                    <i class="fas fa-{% if app.status == 'approved' %}check-circle{% elif app.status == 'rejected' %}times-circle{% else %}hourglass-half{% endif %} me-1"></i>
-                                    {{ app.status|upper }}
-                                </span>
-                                {% if app.status == 'approved' %}
-                                <small class="d-block text-muted mt-1">
-                                    Approved by {{ app.approved_by }}<br>
-                                    {{ app.approved_at.strftime('%b %d, %Y %I:%M %p') if app.approved_at }}
-                                </small>
-                                {% elif app.status == 'rejected' %}
-                                <small class="d-block text-muted mt-1">
-                                    Rejected by {{ app.rejected_by }}<br>
-                                    {{ app.rejected_at.strftime('%b %d, %Y %I:%M %p') if app.rejected_at }}
-                                </small>
-                                {% endif %}
-                            </td>
-                            <td>
-                                {% if app.submitted_at %}
-                                    {{ app.submitted_at.strftime('%b %d, %Y %I:%M %p') }}
-                                {% else %}
-                                    <span class="text-muted">N/A</span>
-                                {% endif %}
-                            </td>
-                            <td>
-                                {% if app.status == 'approved' %}
-                                    <a href="{{ url_for('staff.print_application', app_id=app.id) }}"
-                                       class="btn btn-sm btn-outline-success"
-                                       data-bs-toggle="tooltip" title="Download approved application">
-                                        <i class="fas fa-print"></i> Print
-                                    </a>
-                                {% else %}
-                                    <button type="button" class="btn btn-sm btn-outline-secondary show-toast"
-                                            data-bs-toggle="tooltip" title="Wait for admin approval before printing">
-                                        <i class="fas fa-print"></i> Print
-                                    </button>
-                                {% endif %}
-                            </td>
-                        </tr>
-                        {% else %}
-                        <tr>
-                            <td colspan="6" class="text-center py-5 empty-state">
-                                <i class="fas fa-calendar-times" style="font-size: 2rem;"></i>
-                                <p class="mt-2">No leave applications found</p>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
+<!-- Applications Table -->
+<div class="card ict-card">
+    <div class="card-header ict-card-header">
+        <h5 class="mb-0"><i class="fas fa-clipboard-list me-2"></i>My Leave Applications</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Leave Days</th>
+                        <th>Period</th>
+                        <th>Status</th>
+                        <th>Applied On</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for app in applications %}
+                    <tr>
+                        <td>{{ loop.index }}</td>
+                        <td>{{ app.leave_days or 0 }} day(s)</td>
+                        <td>
+                            {% if app.start_date and app.end_date %}
+                                {{ app.start_date.strftime('%b %d, %Y') }} to {{ app.end_date.strftime('%b %d, %Y') }}<br>
+                                <small class="text-muted">{{ (app.end_date - app.start_date).days + 1 }} total days</small>
+                            {% else %}
+                                <span class="text-danger">Invalid leave dates</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="status-badge bg-{% if app.status == 'approved' %}success{% elif app.status == 'rejected' %}danger{% else %}warning{% endif %}">
+                                <i class="fas fa-{% if app.status == 'approved' %}check-circle{% elif app.status == 'rejected' %}times-circle{% else %}hourglass-half{% endif %} me-1"></i>
+                                {{ app.status|upper }}
+                            </span>
+                            {% if app.status == 'approved' %}
+                            <small class="d-block text-muted mt-1">
+                                Approved by {{ app.approved_by }}<br>
+                                {{ app.approved_at.strftime('%b %d, %Y %I:%M %p') if app.approved_at }}
+                            </small>
+                            {% elif app.status == 'rejected' %}
+                            <small class="d-block text-muted mt-1">
+                                Rejected by {{ app.rejected_by }}<br>
+                                {{ app.rejected_at.strftime('%b %d, %Y %I:%M %p') if app.rejected_at }}
+                            </small>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if app.submitted_at %}
+                                {{ app.submitted_at.strftime('%b %d, %Y %I:%M %p') }}
+                            {% else %}
+                                <span class="text-muted">N/A</span>
+                            {% endif %}
+                        </td>
+                        <td>
+    <a href="{{ url_for('staff.view_application', app_id=app.id) }}"
+       class="btn btn-sm btn-outline-primary"
+       data-bs-toggle="tooltip" title="View application details">
+        <i class="fas fa-eye"></i> View
+    </a>
+
+    {% if app.status == 'approved' %}
+        <a href="{{ url_for('staff.print_application', app_id=app.id) }}"
+           class="btn btn-sm btn-outline-success"
+           data-bs-toggle="tooltip" title="Download approved application">
+            <i class="fas fa-print"></i> Print
+        </a>
+    {% else %}
+        <button type="button" class="btn btn-sm btn-outline-secondary show-toast"
+                data-bs-toggle="tooltip" title="Wait for admin approval before printing">
+            <i class="fas fa-print"></i> Print
+        </button>
+    {% endif %}
+</td>
+
+                    </tr>
+
+                    <!-- View Modal for this application -->
+                    <div class="modal fade" id="viewModal{{ app.id }}" tabindex="-1" aria-labelledby="viewModalLabel{{ app.id }}" aria-hidden="true">
+                      <div class="modal-dialog modal-dialog-scrollable modal-lg">
+                        <div class="modal-content">
+                          <div class="modal-header bg-primary text-white">
+                            <h5 class="modal-title" id="viewModalLabel{{ app.id }}">Leave Application Details</h5>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                          </div>
+                          <div class="modal-body">
+                            <p><strong>Leave Type:</strong> {{ app.leave_type or 'N/A' }}</p>
+                            <p><strong>Designation:</strong> {{ app.designation or 'N/A' }}</p>
+                            <p><strong>Start Date:</strong> {{ app.start_date.strftime('%b %d, %Y') if app.start_date }}</p>
+                            <p><strong>End Date:</strong> {{ app.end_date.strftime('%b %d, %Y') if app.end_date }}</p>
+                            <p><strong>Leave Days:</strong> {{ app.leave_days }}</p>
+                            <p><strong>Contact Address:</strong> {{ app.contact_address or 'N/A' }}</p>
+                            <p><strong>Emergency Contact:</strong> {{ app.contact_tel or 'N/A' }}</p>
+                            <p><strong>Delegate:</strong> {{ app.delegate or 'N/A' }}</p>
+                            <p><strong>Status:</strong> 
+                              <span class="badge bg-{% if app.status == 'approved' %}success{% elif app.status == 'rejected' %}danger{% else %}warning{% endif %}">
+                                {{ app.status|capitalize }}
+                              </span>
+                            </p>
+                            {% if app.supporting_doc %}
+                              <p>
+                                <strong>Supporting Document:</strong><br>
+                                <a href="{{ url_for('static', filename=app.supporting_doc) }}" target="_blank" class="btn btn-sm btn-outline-info">
+                                  <i class="fas fa-download me-1"></i> Download Attachment
+                                </a>
+                              </p>
+                            {% endif %}
+                          </div>
+                          <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    {% else %}
+                    <tr>
+                        <td colspan="7" class="text-center py-5 empty-state">
+                            <i class="fas fa-calendar-times" style="font-size: 2rem;"></i>
+                            <p class="mt-2">No leave applications found</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
     </div>
 </div>

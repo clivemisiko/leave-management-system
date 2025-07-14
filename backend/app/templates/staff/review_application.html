@@ -1,0 +1,99 @@
+{% extends 'staff/base.html' %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="card shadow">
+        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+            <h4 class="mb-0"><i class="fas fa-eye me-2"></i>Review Leave Application</h4>
+            <a href="{{ url_for('staff.create_application') }}" class="btn btn-sm btn-light">
+                <i class="fas fa-arrow-left me-1"></i> Edit Form
+            </a>
+        </div>
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('staff.create_application') }}">
+                <!-- Hidden inputs for preserving form data -->
+                {% for key, value in form_data.items() %}
+                    <input type="hidden" name="{{ key }}" value="{{ value }}">
+                {% endfor %}
+                <input type="hidden" name="action" value="submit">
+                {% if file_path %}
+                    <input type="hidden" name="saved_doc_path" value="{{ file_path }}">
+                    <input type="hidden" name="original_filename" value="{{ original_filename }}">
+                {% endif %}
+
+                <dl class="row">
+                    <dt class="col-sm-4">Name</dt>
+                    <dd class="col-sm-8">{{ form_data.name }}</dd>
+
+                    <dt class="col-sm-4">P/No</dt>
+                    <dd class="col-sm-8">{{ form_data.pno }}</dd>
+
+                    <dt class="col-sm-4">Designation</dt>
+                    <dd class="col-sm-8">{{ form_data.designation }}</dd>
+
+                    <dt class="col-sm-4">Leave Type</dt>
+                    <dd class="col-sm-8">{{ form_data.leave_type }}</dd>
+
+                    <dt class="col-sm-4">Start Date</dt>
+                    <dd class="col-sm-8">
+                                    {{ form_data.start_date.strftime('%b %d, %Y') if form_data.start_date else 'N/A' }}
+                                </dd>
+
+
+                    <dt class="col-sm-4">End Date</dt>
+                    <dd class="col-sm-8">{{ form_data.end_date.strftime('%b %d, %Y') }}</dd>
+
+                    <dt class="col-sm-4">Leave Days</dt>
+                    <dd class="col-sm-8">{{ form_data.leave_days }}</dd>
+
+                    <dt class="col-sm-4">Contact Address</dt>
+                    <dd class="col-sm-8">{{ form_data.contact_address }}</dd>
+
+                    <dt class="col-sm-4">Emergency Contact</dt>
+                    <dd class="col-sm-8">{{ form_data.contact_tel }}</dd>
+
+                    <dt class="col-sm-4">Delegate</dt>
+                    <dd class="col-sm-8">{{ form_data.delegate or "N/A" }}</dd>
+
+                    <dt class="col-sm-4">Salary Option</dt>
+                    <dd class="col-sm-8">
+                        {% if form_data.salary_continue %}
+                            Continue Bank Deposit
+                        {% else %}
+                            Alternate: {{ form_data.salary_address }}
+                        {% endif %}
+                    </dd>
+
+                    {% if form_data.last_leave_start or form_data.last_leave_end %}
+                        <dt class="col-sm-4">Previous Leave Start</dt>
+                        <dd class="col-sm-8">{{ form_data.last_leave_start or "N/A" }}</dd>
+
+                        <dt class="col-sm-4">Previous Leave End</dt>
+                        <dd class="col-sm-8">{{ form_data.last_leave_end or "N/A" }}</dd>
+                    {% endif %}
+
+                  {% if file_path %}
+                {% set filename_only = file_path.split('/')[-1] %}
+                <dt class="col-sm-4">Supporting Document</dt>
+                <dd class="col-sm-8">
+                    <a href="{{ url_for('static', filename=file_path.replace('\\', '/')) }}"
+                        target="_blank"
+                        class="btn btn-sm btn-outline-primary"
+                        download="{{ original_filename }}">
+                            <i class="fas fa-download me-1"></i> Download {{ original_filename }}
+                        </a>
+
+                </dd>
+            {% endif %}
+                </dl>
+
+                <div class="text-end border-top pt-3">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-check-circle me-2"></i>Confirm & Submit
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
