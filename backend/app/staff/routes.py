@@ -643,7 +643,7 @@ def create_staff_application():
 @staff_required
 def print_application(app_id):
     conn = get_mysql_connection()
-    cur = conn.cursor()
+    cur = conn.cursor(pymysql.cursors.DictCursor)
 
     cur.execute("""
         SELECT * FROM leave_applications 
@@ -666,15 +666,26 @@ def print_application(app_id):
 
     app['leave_balance'] = staff_info['leave_balance'] if staff_info else 'N/A'
 
-    # Select correct template
+    # ✅ Load logo and signature
+    logo_base64 = current_app.get_logo_base64()
+    signature_base64 = get_signature_base64()
+
+    if not logo_base64:
+        current_app.logger.warning("⚠️ Logo not found or couldn't be loaded")
+    if not signature_base64:
+        current_app.logger.warning("⚠️ Signature not found or couldn't be loaded")
+
+    # ✅ Select correct template
     template_name = 'admin/pdf_template_staff.html' if app.get('user_type') == 'Staff' else 'admin/pdf_template_hod.html'
 
-    # Generate PDF with logo
-    logo_base64 = current_app.get_logo_base64()
-    if not logo_base64:
-            print("⚠️ WARNING: Logo not found or couldn't be loaded")
-            
-    rendered_html = render_template(template_name, app=app, logo_base64=logo_base64)
+    # ✅ Render PDF
+    rendered_html = render_template(
+        template_name,
+        app=app,
+        logo_base64=logo_base64,
+        signature_base64=signature_base64
+    )
+
     pdf = HTML(string=rendered_html, base_url=request.url_root).write_pdf()
 
     response = make_response(pdf)

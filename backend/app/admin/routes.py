@@ -593,7 +593,18 @@ def print_application(id):
 
         # Select template
         template_name = 'admin/pdf_template_hod.html' if application['is_hod'] else 'admin/pdf_template_staff.html'
+        # Add this to your print_application route
+        signature_base64 = get_signature_base64()
+        if not signature_base64:
+            current_app.logger.warning("Signature could not be loaded")
 
+        # Generate PDF with logo and signature
+        rendered_html = render_template(
+            template_name, 
+            app=application, 
+            logo_base64=logo_base64,
+            signature_base64=signature_base64
+        )
         # Get logo
         logo_base64 = current_app.get_logo_base64()
         if not logo_base64:

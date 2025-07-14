@@ -166,17 +166,27 @@
         {{ app.approval_comments if app.approval_comments else 'No comments provided.' }}
     </div>
 
+    <div style="margin-top: 40px; font-size: 14px;">
+    <div><strong>Approval Comments:</strong></div>
+    <div class="approval-box" style="border: 1px solid #ccc; padding: 10px; min-height: 50px;">
+        {% if app.approval_comments %}
+            {{ app.approval_comments | replace('%', '%%') }}
+        {% else %}
+            No comments provided.
+        {% endif %}
+    </div>
+
     <div style="margin-top: 20px;">
         {% if app.status == 'approved' %}
             <p style="margin-top: 30px;">
                 <strong>Approved by:</strong> Principal Secretary<br>
                 <strong>Date:</strong> {{ app.approved_at.strftime('%d/%m/%Y') if app.approved_at else '____________________' }} &nbsp;&nbsp;&nbsp;
                 <strong>Signature:</strong>
-{% if signature_base64 %}
-    <img src="{{ signature_base64 }}" style="height: 40px;" alt="Signature">
-{% else %}
-    Signature not available
-{% endif %}
+                {% if signature_base64 %}
+                    <img src="data:image/png;base64,{{ signature_base64 }}" alt="Signature" style="height: 40px; vertical-align: middle; margin-left: 10px;">
+                {% else %}
+                    Signature not available
+                {% endif %}
             </p>
         {% else %}
             <p style="margin-top: 30px;">
@@ -187,7 +197,6 @@
         {% endif %}
     </div>
 </div>
-
 
 </body>
 </html>
