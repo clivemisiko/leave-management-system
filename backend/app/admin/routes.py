@@ -27,14 +27,21 @@ def admin_required(f):
     return decorated_function
 
 
-def get_logo_base64():
+def get_signature_base64():
     try:
-        with open("backend/app/static/images/signature.png", "rb") as image_file:
+        # Dynamically get full path
+        signature_path = os.path.join(
+            os.path.dirname(__file__), '..', 'static', 'images', 'signature.png'
+        )
+        signature_path = os.path.abspath(signature_path)
+        print("🔍 Looking for signature at:", signature_path)
+
+        with open(signature_path, "rb") as image_file:
             return "data:image/png;base64," + base64.b64encode(image_file.read()).decode('utf-8')
+
     except Exception as e:
         print("❌ Signature load failed:", e)
         return None
-
 # --- Login/Logout ---
 
 @admin_bp.route('/login', methods=['GET', 'POST'])
