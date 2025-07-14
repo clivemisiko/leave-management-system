@@ -642,57 +642,62 @@ def create_staff_application():
 @staff_bp.route('/application/print/<int:app_id>')
 @staff_required
 def print_application(app_id):
-    conn = get_mysql_connection()
-    cur = conn.cursor(pymysql.cursors.DictCursor)
+    try:
+        conn = get_mysql_connection()
+        cur = conn.cursor(pymysql.cursors.DictCursor)
 
-    cur.execute("""
-        SELECT * FROM leave_applications 
-        WHERE id = %s AND staff_id = %s
-    """, (app_id, session['staff_id']))
-    app = cur.fetchone()
+        cur.execute("""
+            SELECT * FROM leave_applications 
+            WHERE id = %s AND staff_id = %s
+        """, (app_id, session['staff_id']))
+        app = cur.fetchone()
 
-    if not app:
-        flash("Application not found or unauthorized.", "danger")
+        if not app:
+            flash("Application not found or unauthorized.", "danger")
+            return redirect(url_for('staff.staff_dashboard'))
+
+        if app['status'] != 'approved':
+            flash("You can only print approved leave applications.", "warning")
+            return redirect(url_for('staff.staff_dashboard'))
+
+        # Add leave balance
+        cur.execute("SELECT leave_balance FROM staff WHERE id = %s", (session['staff_id'],))
+        staff_info = cur.fetchone()
+        cur.close()
+
+        app['leave_balance'] = staff_info['leave_balance'] if staff_info else 'N/A'
+
+        # ✅ Load logo and signature
+        logo_base64 = current_app.get_logo_base64()
+        signature_base64 = current_app.get_signature_base64()
+
+        if not logo_base64:
+            current_app.logger.warning("⚠️ Logo not found or couldn't be loaded")
+        if not signature_base64:
+            current_app.logger.warning("⚠️ Signature not found or couldn't be loaded")
+
+        # ✅ Select correct template
+        template_name = 'admin/pdf_template_staff.html' if app.get('user_type') == 'Staff' else 'admin/pdf_template_hod.html'
+
+        # ✅ Render PDF
+        rendered_html = render_template(
+            template_name,
+            app=app,
+            logo_base64=logo_base64,
+            signature_base64=signature_base64
+        )
+
+        pdf = HTML(string=rendered_html, base_url=request.url_root).write_pdf()
+
+        response = make_response(pdf)
+        response.headers['Content-Type'] = 'application/pdf'
+        response.headers['Content-Disposition'] = f'inline; filename=leave_application_{app_id}.pdf'
+        return response
+
+    except Exception as e:
+        current_app.logger.error(f"Staff PDF generation error: {str(e)}", exc_info=True)
+        flash("Failed to generate PDF.", "danger")
         return redirect(url_for('staff.staff_dashboard'))
-
-    if app['status'] != 'approved':
-        flash("You can only print approved leave applications.", "warning")
-        return redirect(url_for('staff.staff_dashboard'))
-
-    # Add leave balance
-    cur.execute("SELECT leave_balance FROM staff WHERE id = %s", (session['staff_id'],))
-    staff_info = cur.fetchone()
-    cur.close()
-
-    app['leave_balance'] = staff_info['leave_balance'] if staff_info else 'N/A'
-
-    # ✅ Load logo and signature
-    logo_base64 = current_app.get_logo_base64()
-    signature_base64 = get_signature_base64()
-
-    if not logo_base64:
-        current_app.logger.warning("⚠️ Logo not found or couldn't be loaded")
-    if not signature_base64:
-        current_app.logger.warning("⚠️ Signature not found or couldn't be loaded")
-
-    # ✅ Select correct template
-    template_name = 'admin/pdf_template_staff.html' if app.get('user_type') == 'Staff' else 'admin/pdf_template_hod.html'
-
-    # ✅ Render PDF
-    rendered_html = render_template(
-        template_name,
-        app=app,
-        logo_base64=logo_base64,
-        signature_base64=signature_base64
-    )
-
-    pdf = HTML(string=rendered_html, base_url=request.url_root).write_pdf()
-
-    response = make_response(pdf)
-    response.headers['Content-Type'] = 'application/pdf'
-    response.headers['Content-Disposition'] = f'inline; filename=leave_application_{app_id}.pdf'
-    return response
-
 
 @staff_bp.route('/logout')
 def staff_logout():

@@ -23,12 +23,24 @@ def get_logo_base64():
         print(f"⚠️ Logo not found at: {logo_path}")
         return None
 
+def load_signature_base64():
+    try:
+        from flask import current_app
+        signature_path = os.path.join(current_app.static_folder, 'images', 'signature.png')
+        with open(signature_path, 'rb') as image_file:
+            return 'data:image/png;base64,' + base64.b64encode(image_file.read()).decode('utf-8')
+    except Exception as e:
+        print(f"⚠️ Signature load failed: {e}")
+        return None
+
+
 def create_app():
     app = Flask(
         __name__,
         template_folder='templates',
         static_folder=os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'static'))
     )
+    app.get_signature_base64 = load_signature_base64
     app.get_logo_base64 = get_logo_base64
     app.secret_key = os.urandom(24)
     app.config['MAX_CONTENT_LENGTH'] = 2 * 1024 * 1024

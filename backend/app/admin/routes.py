@@ -552,16 +552,16 @@ Please contact HR if you have any questions.
 def print_application(id):
     try:
         conn = get_mysql_connection()
-        cur = conn.cursor()
+        cur = conn.cursor(pymysql.cursors.DictCursor)
 
+        # Fetch application with staff details
         cur.execute("""
             SELECT la.*,
                    COALESCE(s.username, la.name) AS name,
                    COALESCE(s.pno, la.pno) AS pno,
                    CASE
                        WHEN la.designation LIKE '%%HOD%%' OR la.designation LIKE '%%Head%%'
-                       THEN 1
-                       ELSE 0
+                       THEN 1 ELSE 0
                    END AS is_hod
             FROM leave_applications la
             LEFT JOIN staff s ON la.staff_id = s.id
@@ -578,41 +578,35 @@ def print_application(id):
             flash("Only approved applications can be printed.", "warning")
             return redirect(url_for('admin.admin_dashboard'))
 
-        # Convert string dates to datetime objects
-        date_fields = ['start_date', 'end_date', 'last_leave_start', 'last_leave_end']
-        for field in date_fields:
+        # Convert date strings to date objects if necessary
+        for field in ['start_date', 'end_date', 'last_leave_start', 'last_leave_end']:
             if application.get(field) and isinstance(application[field], str):
                 try:
                     application[field] = datetime.strptime(application[field], '%Y-%m-%d').date()
-                except ValueError as e:
-                    current_app.logger.error(f"Date parsing error for {field}: {e}")
+                except ValueError:
+                    current_app.logger.warning(f"Invalid date format in field: {field}")
                     application[field] = None
 
-        # Debug: Print application data
-        current_app.logger.info(f"Application data: {application}")
+        # ✅ Load logo and signature
+        logo_base64 = current_app.get_logo_base64()
+        signature_base64 = current_app.get_signature_base64()
 
-        # Select template
-        template_name = 'admin/pdf_template_hod.html' if application['is_hod'] else 'admin/pdf_template_staff.html'
-        # Add this to your print_application route
-        signature_base64 = get_signature_base64()
+        if not logo_base64:
+            current_app.logger.warning("⚠️ Logo not found or couldn't be loaded")
         if not signature_base64:
-            current_app.logger.warning("Signature could not be loaded")
+            current_app.logger.warning("⚠️ Signature not found or couldn't be loaded")
 
-        # Generate PDF with logo and signature
+        # ✅ Select template
+        template_name = 'admin/pdf_template_hod.html' if application['is_hod'] else 'admin/pdf_template_staff.html'
+
+        # ✅ Render and generate PDF
         rendered_html = render_template(
-            template_name, 
-            app=application, 
+            template_name,
+            app=application,
             logo_base64=logo_base64,
             signature_base64=signature_base64
         )
-        # Get logo
-        logo_base64 = current_app.get_logo_base64()
-        if not logo_base64:
-            current_app.logger.warning("Logo not found or could not be loaded")
-
-        # Generate PDF
-        rendered_html = render_template(template_name, app=application, logo_base64=logo_base64)
-        pdf = HTML(string=rendered_html).write_pdf()
+        pdf = HTML(string=rendered_html, base_url=request.url_root).write_pdf()
 
         response = make_response(pdf)
         response.headers['Content-Type'] = 'application/pdf'
