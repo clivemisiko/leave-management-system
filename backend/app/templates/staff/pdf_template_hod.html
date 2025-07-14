@@ -12,12 +12,13 @@
         }
         .logo-container {
             text-align: center;
-            margin-top: -20px;
             margin-bottom: 15px;
+            margin-top: -20px; 
         }
         @page { margin: 2cm; }
         body { font-family: "Times New Roman", serif; }
         .logo { height: 80px; }
+        
         .logo {
             height: 80px;
             margin-bottom: 10px;
@@ -86,9 +87,12 @@
 </head>
 <body>
 
+<!-- Logo Section - Add error handling -->
 <div class="logo-container">
-{% if logo_base64 %}<img src="{{ logo_base64 }}" alt="Kenya Government Logo" style="height: 80px;">
-    {% endif %}</div>
+    {% if logo_base64 %}
+        <img src="{{ logo_base64 }}" alt="Government Logo" style="height:80px;">
+    {% endif %}
+</div>
 
 
     <div class="header">
@@ -180,29 +184,30 @@
         <div>Date: <span class="underline" style="width: 100px;">{{ app.application_date.strftime('%d/%m/%Y') if app.application_date else '' }}</span></div>
     </div>
 
-    <div style="margin-top: 40px;">
-        <div>Recommended by H.O.D:</div>
-        <div class="approval-box">{% if app.hod_comments %}{{ app.hod_comments | replace('%', '%%') }}{% endif %}</div>
-        <div style="margin-top: 10px;">
-            Date: <span class="underline" style="width: 100px;">{{ app.hod_date.strftime('%d/%m/%Y') if app.hod_date else '' }}</span>
-            Signed: <span class="signature-line" style="display: inline-block; width: 150px;"></span>
-        </div>
-        <div style="text-align: right; margin-top: 5px;">
-            HEAD OF DEPARTMENT
-        </div>
+        <div style="margin-top: 40px;">
+    <strong>Approval Comments:</strong>
+    <div class="approval-box" style="border:1px solid #333; padding:10px; min-height:60px;">
+        {{ app.approval_comments if app.approval_comments else 'No comments provided.' }}
     </div>
 
-    <div style="margin-top: 40px;">
-        <div>Approved by:</div>
-        <div class="approval-box">{% if app.approval_comments %}{{ app.approval_comments | replace('%', '%%') }}{% endif %}</div>
-        <div style="margin-top: 10px;">
-            Date: <span class="underline" style="width: 100px;">{{ app.approval_date.strftime('%d/%m/%Y') if app.approval_date else '' }}</span>
-            Signed: <span class="signature-line" style="display: inline-block; width: 150px;"></span>
-        </div>
-        <div style="text-align: right; margin-top: 5px;">
-            PRINCIPAL SECRETARY
-        </div>
+    <div style="margin-top: 20px;">
+        {% if app.status == 'approved' %}
+            <p style="margin-top: 30px;">
+                <strong>Approved by:</strong> Principal Secretary<br>
+                <strong>Date:</strong> {{ app.approved_at.strftime('%d/%m/%Y') if app.approved_at else '____________________' }} &nbsp;&nbsp;&nbsp;
+                <strong>Signature:</strong>
+                <img src="{{ url_for('static', filename='images/signature.png') }}" alt="Signature" style="height:40px; vertical-align: middle; margin-left: 10px;">
+            </p>
+        {% else %}
+            <p style="margin-top: 30px;">
+                <strong>Approved by:</strong> ____________________<br>
+                <strong>Date:</strong> ____________________ &nbsp;&nbsp;&nbsp;
+                <strong>Signature:</strong> ____________________
+            </p>
+        {% endif %}
     </div>
+</div>
+
 
 </body>
 </html>

@@ -1,3 +1,4 @@
-import pandas as pd
+from werkzeug.security import generate_password_hash
 
-print(pd.__version__)
+hashed_password = generate_password_hash("admin123")
+print(hashed_password)

@@ -2,6 +2,8 @@ from flask import Blueprint, current_app, render_template, request, redirect, ur
 from werkzeug.security import check_password_hash
 from weasyprint import HTML
 from backend.app.extensions import get_mysql_connection, mail, pymysql
+from backend.app.utils.audit import log_action
+from backend.app.utils.email import send_email
 import os
 from functools import wraps
 from datetime import datetime
@@ -393,80 +395,70 @@ def delete_application(id):
         # Log the error: current_app.logger.error(f"Delete error: {str(e)}")
     return redirect(url_for('admin.admin_dashboard'))
 
-@admin_bp.route('/approve/<int:app_id>')
+@admin_bp.route('/approve/<int:app_id>', methods=['GET', 'POST'])
 @admin_required
 def approve_application(app_id):
-    try:
-        from backend.app.utils.email import send_email
-        from backend.app.utils.audit import log_action  # ✅ Log import
+    conn = get_mysql_connection()
+    cur = conn.cursor(pymysql.cursors.DictCursor)
 
-        conn = get_mysql_connection()
-        cur = conn.cursor(pymysql.cursors.DictCursor)
+    if request.method == 'POST':
+        approval_comments = request.form.get('approval_comments', '').strip()
 
-        cur.execute("""
-            SELECT staff_id, leave_days, status FROM leave_applications WHERE id = %s
-        """, (app_id,))
-        application = cur.fetchone()
+        try:
+            cur.execute("SELECT staff_id, leave_days, status FROM leave_applications WHERE id = %s", (app_id,))
+            application = cur.fetchone()
+            if not application:
+                flash('Application not found', 'danger')
+                return redirect(url_for('admin.admin_dashboard'))
 
-        if not application:
-            flash('Application not found', 'danger')
+            if application['status'] == 'approved':
+                flash('Application already approved', 'info')
+                return redirect(url_for('admin.admin_dashboard'))
+
+            cur.execute("SELECT leave_balance, email, username FROM staff WHERE id = %s FOR UPDATE", (application['staff_id'],))
+            staff = cur.fetchone()
+
+            if staff['leave_balance'] < application['leave_days']:
+                flash('Insufficient leave balance', 'warning')
+                return redirect(url_for('admin.admin_dashboard'))
+
+            # ✅ Deduct balance and approve
+            cur.execute("UPDATE staff SET leave_balance = leave_balance - %s WHERE id = %s",
+                        (application['leave_days'], application['staff_id']))
+            cur.execute("""
+                UPDATE leave_applications 
+                SET status = 'approved', approved_at = NOW(), approved_by = %s, approval_comments = %s
+                WHERE id = %s
+            """, (session['admin_username'], approval_comments, app_id))
+
+            conn.commit()
+
+            log_action(f"Admin {session['admin_username']} approved leave ID {app_id}",
+                       admin_username=session['admin_username'])
+
+            send_email(
+                subject="Leave Approved",
+                recipients=[staff['email']],
+                body=f"Hello {staff['username']},\n\nYour leave request has been approved. Kindly login and print your leave form!"
+            )
+
+            flash('Application approved successfully', 'success')
             return redirect(url_for('admin.admin_dashboard'))
 
-        if application['status'] == 'approved':
-            flash('Application already approved', 'info')
-            return redirect(url_for('admin.admin_dashboard'))
-
-        cur.execute("""
-            SELECT leave_balance, email, username FROM staff WHERE id = %s FOR UPDATE
-        """, (application['staff_id'],))
-        staff = cur.fetchone()
-
-        if not staff:
-            flash('Staff record not found', 'danger')
-            return redirect(url_for('admin.admin_dashboard'))
-
-        if staff['leave_balance'] < application['leave_days']:
-            flash('Insufficient leave balance', 'warning')
-            return redirect(url_for('admin.admin_dashboard'))
-
-        cur.execute("""
-            UPDATE staff SET leave_balance = leave_balance - %s WHERE id = %s
-        """, (application['leave_days'], application['staff_id']))
-
-        cur.execute("""
-            UPDATE leave_applications 
-            SET status = 'approved', approved_at = NOW(), approved_by = %s 
-            WHERE id = %s
-        """, (session['admin_username'], app_id))
-
-        conn.commit()
-
-        # ✅ Audit Log
-        log_action(
-            action=f"Admin {session['admin_username']} approved leave ID {app_id}",
-            admin_username=session['admin_username']
-        )
-
-        # ✅ Email to staff
-        send_email(
-            subject="Leave Approved",
-            recipients=[staff['email']],
-            body=f"Hello {staff['username']},\n\nYour leave request has been approved. Kindly login and print your leave form!"
-        )
-
-        flash('Application approved', 'success')
-
-    except Exception as e:
-        if conn:
+        except Exception as e:
             conn.rollback()
-        flash(f'Approval failed: {str(e)}', 'danger')
-        if current_app:
-            current_app.logger.error(f"Approval error: {str(e)}")
+            current_app.logger.error(f"Approval failed: {str(e)}", exc_info=True)
+            flash(f'Error during approval: {str(e)}', 'danger')
 
-    finally:
-        cur.close()
+        finally:
+            cur.close()
 
-    return redirect(url_for('admin.admin_dashboard'))
+    # Render approval form
+    cur.execute("SELECT * FROM leave_applications WHERE id = %s", (app_id,))
+    app = cur.fetchone()
+    cur.close()
+
+    return render_template('admin/approve_form.html', app=app)
 
 
 

@@ -481,10 +481,11 @@
             </a>
             {% endif %}
             {% if app.status != 'rejected' %}
-            <button class="btn btn-outline-danger" title="Reject" 
-        data-bs-toggle="modal" data-bs-target="#rejectModal{{ app.id }}">
-    <i class="fas fa-times-circle"></i>
-</button>
+            <button class="btn btn-sm btn-outline-danger" title="Reject" 
+                data-bs-toggle="modal" data-bs-target="#rejectModal{{ app.id }}">
+                <i class="fas fa-times-circle me-1"></i> Reject
+            </button>
+
             {% endif %}
         </div>
     </div>
