@@ -24,6 +24,8 @@ import tempfile
 import os
 import uuid
 import re
+import base64
+
 
 ALLOWED_EXTENSIONS = {'pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png'}
 
@@ -54,6 +56,16 @@ def staff_required(f):
             return redirect(url_for('staff.staff_login'))  # ✅ this was missing
         return f(*args, **kwargs)
     return decorated_function
+
+
+def get_logo_base64():
+    try:
+        with open("backend/app/static/images/signature.png", "rb") as image_file:
+            return "data:image/png;base64," + base64.b64encode(image_file.read()).decode('utf-8')
+    except Exception as e:
+        print("❌ Signature load failed:", e)
+        return None
+
 
 @staff_bp.route('/dashboard')
 @staff_required

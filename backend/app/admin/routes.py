@@ -26,6 +26,15 @@ def admin_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
+
+def get_logo_base64():
+    try:
+        with open("backend/app/static/images/signature.png", "rb") as image_file:
+            return "data:image/png;base64," + base64.b64encode(image_file.read()).decode('utf-8')
+    except Exception as e:
+        print("❌ Signature load failed:", e)
+        return None
+
 # --- Login/Logout ---
 
 @admin_bp.route('/login', methods=['GET', 'POST'])

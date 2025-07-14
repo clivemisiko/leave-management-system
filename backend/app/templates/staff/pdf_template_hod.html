@@ -196,7 +196,11 @@
                 <strong>Approved by:</strong> Principal Secretary<br>
                 <strong>Date:</strong> {{ app.approved_at.strftime('%d/%m/%Y') if app.approved_at else '____________________' }} &nbsp;&nbsp;&nbsp;
                 <strong>Signature:</strong>
-                <img src="{{ url_for('static', filename='images/signature.png') }}" alt="Signature" style="height:40px; vertical-align: middle; margin-left: 10px;">
+{% if signature_base64 %}
+    <img src="{{ signature_base64 }}" style="height: 40px;" alt="Signature">
+{% else %}
+    Signature not available
+{% endif %}
             </p>
         {% else %}
             <p style="margin-top: 30px;">
