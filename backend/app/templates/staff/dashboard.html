@@ -127,24 +127,23 @@
     .empty-state {
         padding: 2rem;
     }
-    /* Add this to your existing CSS */
-/* Add this to your existing CSS */
-.table thead th.blue-header {
-    background-color: var(--ict-blue);
-    color: white;
-    position: relative;
-}
 
-.table thead th.blue-header:after {
-    content: "";
-    position: absolute;
-    left: 0;
-    bottom: -3px;
-    width: 100%;
-    height: 3px;
-    background-color: var(--ict-dark-blue);
-}
-.fa-file-pdf { color: #d9534f; }
+    .table thead th.blue-header {
+        background-color: var(--ict-blue);
+        color: white;
+        position: relative;
+    }
+
+    .table thead th.blue-header:after {
+        content: "";
+        position: absolute;
+        left: 0;
+        bottom: -3px;
+        width: 100%;
+        height: 3px;
+        background-color: var(--ict-dark-blue);
+    }
+    .fa-file-pdf { color: #d9534f; }
     .fa-file-word { color: #0275d8; }
     .fa-file-image { color: #5cb85c; }
 </style>
@@ -170,29 +169,34 @@
 
     <!-- Toast Notifications -->
     <div aria-live="polite" aria-atomic="true" class="position-relative">
-        <div class="toast-container position-fixed top-0 end-0 p-3">
-            <!-- Print restriction toast -->
-            <div id="approvalToast" class="toast align-items-center text-white bg-warning border-0" role="alert">
+        <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1100;">
+            <!-- Manual Print Restriction Toast -->
+            <div id="approvalToast" class="toast align-items-center text-white bg-warning border-0" role="alert" aria-live="assertive" aria-atomic="true">
                 <div class="d-flex">
-                    <div class="toast-body">
+                    <div class="toast-body" role="alert">
                         <i class="fas fa-exclamation-triangle me-2"></i>
                         You can only print approved leave applications
                     </div>
-                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
                 </div>
             </div>
 
-            <!-- Flash messages -->
+            <!-- Flask Flash Messages -->
             {% with messages = get_flashed_messages(with_categories=true) %}
                 {% if messages %}
                     {% for category, message in messages %}
-                        <div class="toast align-items-center text-white bg-{% if category == 'error' %}danger{% else %}{{ category }}{% endif %} border-0" role="alert">
+                        <div class="toast align-items-center text-white bg-{{ category if category in ['success', 'warning', 'danger', 'info'] else 'secondary' }} border-0" role="alert" aria-live="assertive" aria-atomic="true">
                             <div class="d-flex">
-                                <div class="toast-body">
-                                    <i class="fas fa-{% if category == 'error' %}exclamation-triangle{% else %}check-circle{% endif %} me-2"></i>
+                                <div class="toast-body" role="alert">
+                                    <i class="fas 
+                                    {% if category == 'success' %}fa-check-circle
+                                    {% elif category == 'warning' %}fa-exclamation-triangle
+                                    {% elif category == 'danger' %}fa-times-circle
+                                    {% elif category == 'info' %}fa-info-circle
+                                    {% else %}fa-bell{% endif %} me-2"></i>
                                     {{ message }}
                                 </div>
-                                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
                             </div>
                         </div>
                     {% endfor %}
@@ -400,26 +404,17 @@
         </div>
     </div>
 </div>
-
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Initialize all toasts
-    const toasts = document.querySelectorAll('.toast');
-    toasts.forEach(toastEl => new bootstrap.Toast(toastEl, { animation: true, autohide: true, delay: 5000 }).show());
-
-    // Initialize tooltips
-    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-    const tooltipList = tooltipTriggerList.map(function(tooltipTriggerEl) {
-        return new bootstrap.Tooltip(tooltipTriggerEl);
+document.addEventListener('DOMContentLoaded', function () {
+  const toasts = document.querySelectorAll('.toast');
+  toasts.forEach(toastEl => {
+    const toast = new bootstrap.Toast(toastEl, {
+      animation: true,
+      autohide: true,
+      delay: 4000
     });
-
-    // Print restriction toast
-    document.querySelectorAll('.show-toast').forEach(btn => {
-        btn.addEventListener('click', function() {
-            const toast = new bootstrap.Toast(document.getElementById('approvalToast'), { delay: 4000 });
-            toast.show();
-        });
-    });
+    toast.show();
+  });
 });
 </script>
 {% endblock %}

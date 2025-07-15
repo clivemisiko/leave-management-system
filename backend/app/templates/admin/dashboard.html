@@ -172,26 +172,6 @@
             </div>
         </div>
     </div>
-    <!-- Toast Notifications -->
-    <div aria-live="polite" aria-atomic="true" class="position-relative">
-        <div class="toast-container position-fixed top-0 end-0 p-3">
-            {% with messages = get_flashed_messages(with_categories=true) %}
-                {% if messages %}
-                    {% for category, message in messages %}
-                        <div class="toast align-items-center text-white bg-{% if category == 'error' %}danger{% else %}{{ category }}{% endif %} border-0" role="alert">
-                            <div class="d-flex">
-                                <div class="toast-body">
-                                    <i class="fas fa-{% if category == 'error' %}exclamation-triangle{% else %}check-circle{% endif %} me-2"></i>
-                                    {{ message }}
-                                </div>
-                                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
-                            </div>
-                        </div>
-                    {% endfor %}
-                {% endif %}
-            {% endwith %}
-        </div>
-    </div>
 
     <!-- Summary Cards -->
     <div class="row mb-4">

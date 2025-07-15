@@ -1,0 +1,32 @@
+<!-- templates/staff/base_login.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>{% block title %}Staff Login{% endblock %}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body style="background-color: #0066b3;">
+
+  <!-- ✅ Toast block -->
+  <div aria-live="polite" aria-atomic="true" class="position-fixed top-0 start-50 translate-middle-x p-3" style="z-index: 1100;">
+    <div class="toast-container d-flex flex-column gap-2 align-items-center">
+      
+    </div>
+  </div>
+
+  {% block content %}{% endblock %}
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      const toasts = document.querySelectorAll('.toast');
+      toasts.forEach(toastEl => {
+        new bootstrap.Toast(toastEl, { autohide: true, delay: 4000 }).show();
+      });
+    });
+  </script>
+</body>
+</html>

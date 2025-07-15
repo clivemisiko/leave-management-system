@@ -42,11 +42,14 @@ def get_signature_base64():
     except Exception as e:
         print("❌ Signature load failed:", e)
         return None
+    
 # --- Login/Logout ---
-
 @admin_bp.route('/login', methods=['GET', 'POST'])
 def admin_login():
-    session.clear()
+    # Check for logout success message first
+    if session.pop('logout_success', None):
+        flash('You have been logged out successfully', 'success')
+
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
@@ -62,25 +65,25 @@ def admin_login():
                 return render_template('admin/login.html')
 
             if check_password_hash(admin['password'], password):
+                session.clear()  # Clear any existing session
                 session['admin_logged_in'] = True
                 session['admin_id'] = admin['id']
                 session['admin_username'] = admin['username']
                 session['last_login'] = datetime.now().strftime('%b %d, %Y %I:%M %p')
-
+                session['login_success'] = True
                 return redirect(url_for('admin.admin_dashboard'))
-            
-            else:
-                flash('Invalid password', 'danger')
+
+            flash('Invalid password', 'danger')
+
         except Exception as e:
             flash(f'Login error: {str(e)}', 'danger')
 
     return render_template('admin/login.html')
 
 @admin_bp.route('/logout')
-@admin_required
 def admin_logout():
-    session.clear()
-    flash('You have been logged out', 'info')
+    session.clear()  # Clear the session first
+    session['logout_success'] = True  # Set the flag after clearing
     return redirect(url_for('admin.admin_login'))
 
 # --- View Staff Members ---
@@ -237,13 +240,14 @@ def create_application():
 @admin_bp.route('/dashboard/<status_filter>')
 @admin_required
 def admin_dashboard(status_filter=None):
-    if request.referrer and url_for('admin.admin_login') in request.referrer:
+    # ✅ Only flash if redirected with success flag
+    if session.pop('login_success', None):
         flash('Login successful', 'success')
 
     conn = get_mysql_connection()
     cur = conn.cursor()
 
-    # ✅ Base query now includes supporting_doc
+    # Base query
     base_query = """
     SELECT 
         la.id,
@@ -260,14 +264,13 @@ def admin_dashboard(status_filter=None):
         la.rejected_by,
         la.rejected_at,
         la.created_at,
-        la.supporting_doc  -- ✅ this line added
+        la.supporting_doc
     FROM leave_applications la
     LEFT JOIN staff s ON la.staff_id = s.id
     """
 
     search = request.args.get('search', '').strip()
     status_filter = request.args.get('status', '').strip()
-
     params = []
     conditions = []
 
@@ -287,7 +290,6 @@ def admin_dashboard(status_filter=None):
     cur.execute(query, tuple(params))
     applications = cur.fetchall()
 
-    # ✅ Staff list for staff section
     cur.execute("SELECT * FROM staff ORDER BY id DESC")
     staff_list = cur.fetchall()
 
@@ -299,13 +301,13 @@ def admin_dashboard(status_filter=None):
                 staff['date_created'] = None
 
     cur.close()
+
     return render_template(
         'admin/dashboard.html',
         applications=applications,
         staff_list=staff_list,
         current_filter=status_filter
     )
-
 
 @admin_bp.route('/application/edit/<int:id>', methods=['GET', 'POST'])
 @admin_required

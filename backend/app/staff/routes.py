@@ -75,14 +75,14 @@ def get_signature_base64():
 @staff_bp.route('/dashboard')
 @staff_required
 def staff_dashboard():
-    # Show login success message if coming from login page
-    if request.referrer and url_for('staff.staff_login') in request.referrer:
-        flash('Login successful', 'success')
-
     staff_id = session.get('staff_id')
     if not staff_id:
         flash('Session expired. Please login again.', 'danger')
         return redirect(url_for('staff.staff_login'))
+    
+      # ✅ Trigger toast after login
+    if session.pop('login_success', None):
+        flash('Login successful', 'success')
 
     conn = None
     cur = None
@@ -258,67 +258,50 @@ def register():
 
 @staff_bp.route('/login', methods=['GET', 'POST'])
 def staff_login():
-    session.clear()
+    # Check for logout success message first
+    if session.pop('logout_success', None):
+        flash('Logged out successfully', 'success')
 
     if request.method == 'POST':
         login_input = request.form['login_input'].strip()
         password = request.form['password']
 
-        print(f"\n--- LOGIN ATTEMPT ---")
-        print(f"Login input: {login_input}")
-        print(f"Password: {password}")
+        conn = get_mysql_connection()
+        cur = conn.cursor(pymysql.cursors.DictCursor)
 
-        try:
-            from backend.app.extensions import get_mysql_connection
-            import pymysql
-            from werkzeug.security import check_password_hash
+        if '@' in login_input:
+            cur.execute("SELECT * FROM staff WHERE email = %s", (login_input,))
+        else:
+            cur.execute("SELECT * FROM staff WHERE pno = %s", (login_input,))
 
-            conn = get_mysql_connection()
-            cur = conn.cursor(pymysql.cursors.DictCursor)
+        staff = cur.fetchone()
+        cur.close()
+        conn.close()
 
-            # ✅ Determine login method
-            if '@' in login_input:
-                print("Querying by email")
-                cur.execute("SELECT * FROM staff WHERE email = %s", (login_input,))
-            else:
-                print("Querying by pno")
-                cur.execute("SELECT * FROM staff WHERE pno = %s", (login_input,))
+        if not staff:
+            flash('Invalid email or staff number', 'danger')
+            return redirect(url_for('staff.staff_login'))
 
-            staff = cur.fetchone()
-            cur.close()
-            conn.close()
+        if not check_password_hash(staff['password'], password):
+            flash('Incorrect password', 'danger')
+            return redirect(url_for('staff.staff_login'))
 
-            print(f"Found staff: {staff}")
-
-            if not staff:
-                flash('No user found with those credentials', 'danger')
-                return redirect(url_for('staff.staff_login'))
-
-            # ✅ Password check
-            print(f"Staff password hash: {staff['password']}")
-            if not check_password_hash(staff['password'], password):
-                flash('Incorrect password', 'danger')
-                return redirect(url_for('staff.staff_login'))
-
-            # ✅ Set session
-            session['staff_logged_in'] = True
-            session['staff_id'] = staff['id']
-            session['staff_pno'] = staff['pno']
-            session['staff_name'] = staff['username']
-
-            print(f"Session set: {dict(session)}")
-
-            return redirect(url_for('staff.staff_dashboard'))
-
-        except Exception as e:
-            print(f"Login error: {str(e)}")
-            current_app.logger.error(f"Login error: {str(e)}")
-            flash('Something went wrong during login.', 'danger')
+        session.clear()
+        session['staff_logged_in'] = True
+        session['staff_id'] = staff['id']
+        session['staff_pno'] = staff['pno']
+        session['staff_name'] = staff['username']
+        session['login_success'] = True
+        return redirect(url_for('staff.staff_dashboard'))
 
     return render_template('staff/login.html')
 
-
-
+@staff_bp.route('/logout')
+def staff_logout():
+    session['logout_success'] = True
+    session.clear()
+    session['logout_success'] = True
+    return redirect(url_for('staff.staff_login'))
 @staff_bp.route('/forgot-password', methods=['GET', 'POST'])
 def forgot_password():
     if request.method == 'POST':
@@ -699,11 +682,6 @@ def print_application(app_id):
         flash("Failed to generate PDF.", "danger")
         return redirect(url_for('staff.staff_dashboard'))
 
-@staff_bp.route('/logout')
-def staff_logout():
-    session.clear()
-    flash('Logged out successfully', 'info')
-    return redirect(url_for('staff.staff_login'))
 
 @staff_bp.route('/application/cancel/<int:id>')
 @staff_required
