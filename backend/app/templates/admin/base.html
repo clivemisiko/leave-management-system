@@ -125,7 +125,11 @@
     <a href="{{ url_for('admin.create_application') }}" class="sidebar-link {% if request.endpoint == 'admin.create_application' %}active{% endif %}">
         <i class="fas fa-plus-circle me-2"></i> New Application
     </a>
-    
+
+     <a href="{{ url_for('admin.view_staff_members') }}" class="sidebar-link">
+        <i class="fas fa-users me-2"></i> View Staff Members
+    </a>
+   
     <a href="{{ url_for('main.home') }}" class="sidebar-link">
         <i class="fas fa-globe me-2"></i> Public Home
     </a>

@@ -74,53 +74,299 @@
       padding-top: 120px;
       padding-bottom: 2rem;
     }
+      .header-container {
+    position: fixed;
+    top: 0;
+    width: 100%;
+    z-index: 1030;
+    box-shadow: 0 2px 15px rgba(0,0,0,0.1);
+  }
+
+  /* Top Banner */
+  .top-banner {
+    background-color: var(--ict-blue);
+    color: white;
+    border-bottom: 2px solid rgba(255,255,255,0.1);
+  }
+
+  .government-logo {
+    height: 50px;
+    width: auto;
+  }
+
+  .ministry-title {
+    font-size: 1rem;
+    line-height: 1.2;
+  }
+
+  .ministry-name, .ministry-subtitle {
+    font-weight: 600;
+  }
+
+  .government-text {
+    font-size: 0.8rem;
+    opacity: 0.9;
+    margin-top: 2px;
+  }
+
+  .staff-portal-badge {
+    background-color: rgba(255,255,255,0.2);
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 0.9rem;
+  }
+
+  /* Main Navigation */
+  .main-navigation {
+    background-color: var(--ict-dark-blue);
+    padding: 0.5rem 0;
+  }
+
+  .ministry-logo {
+    height: 35px;
+    width: auto;
+  }
+
+  .system-name {
+    font-weight: 500;
+    font-size: 1.1rem;
+  }
+
+  .nav-link {
+    padding: 0.75rem 1rem;
+    transition: all 0.2s;
+  }
+
+  .nav-link.active {
+    background-color: rgba(255,255,255,0.15);
+    font-weight: 500;
+  }
+
+  .nav-link:hover {
+    background-color: rgba(255,255,255,0.1);
+  }
+
+  /* User Dropdown */
+  .btn-user {
+    color: white;
+    border: 1px solid rgba(255,255,255,0.3);
+    padding: 0.5rem 1rem;
+  }
+
+  .btn-user:hover {
+    background-color: rgba(255,255,255,0.1);
+  }
+
+  .dropdown-menu {
+    border: none;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+  }
+
+  .dropdown-item {
+    padding: 0.5rem 1.5rem;
+  }
+
+  @media (max-width: 991.98px) {
+    .navbar-collapse {
+      padding: 1rem 0;
+      background-color: rgba(0,64,128,0.95);
+    }
+    
+    .nav-link {
+      padding: 0.75rem 1.5rem;
+    }
+    
+    .dropdown-menu {
+      background-color: transparent;
+      border: none;
+      box-shadow: none;
+    }
+    
+    .dropdown-item {
+      padding-left: 2.5rem;
+    }
+  }
+  /* Enhanced Dropdown Styles */
+  .dropdown-menu {
+    border: none;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    min-width: 220px;
+    padding: 0.5rem 0;
+  }
+
+  .dropdown-item {
+    padding: 0.5rem 1.5rem;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+  }
+
+  .dropdown-item:hover {
+    background-color: rgba(0, 102, 179, 0.1);
+    color: var(--ict-blue);
+  }
+
+  .dropdown-item i {
+    width: 20px;
+    text-align: center;
+    margin-right: 10px;
+    color: var(--ict-blue);
+  }
+
+  .dropdown-divider {
+    margin: 0.5rem 0;
+    border-color: rgba(0,0,0,0.05);
+  }
+
+  /* Active dropdown state */
+  .dropdown.show .btn-user {
+    background-color: rgba(255,255,255,0.2);
+  }
+
+  @media (max-width: 991.98px) {
+    .dropdown-menu {
+      background-color: transparent;
+      box-shadow: none;
+      border: none;
+      padding: 0;
+    }
+
+    .dropdown-item {
+      padding: 0.75rem 1.5rem 0.75rem 2.5rem;
+    }
+  }
   </style>
 </head>
 <body>
 
-  <!-- ✅ Header/Navbar -->
-  <div class="header-container">
-    <div class="container py-2 d-flex align-items-center">
-      <img src="{{ url_for('static', filename='images/kenya_logo.png') }}" alt="Kenya Logo" class="government-logo">
-      <div class="ministry-title ms-3">
-        MINISTRY OF INFORMATION, COMMUNICATIONS AND THE DIGITAL ECONOMY
-        <div class="small">Republic of Kenya</div>
+<!-- ✅ Enhanced Header/Navbar with Functional Dropdown -->
+<div class="header-container">
+  <!-- Top Banner with Government Branding -->
+  <div class="top-banner py-2">
+    <div class="container">
+      <div class="d-flex align-items-center">
+        <!-- Kenya Government Logo -->
+        <img src="{{ url_for('static', filename='images/kenya_logo.png') }}" 
+             alt="Government of Kenya" 
+             class="government-logo me-3">
+        
+        <!-- Ministry Title -->
+        <div class="d-flex align-items-center">
+          <div class="vr me-3" style="height: 40px; background-color: rgba(255,255,255,0.3);"></div>
+          <div class="ministry-title">
+            <div class="ministry-name">MINISTRY OF INFORMATION, COMMUNICATIONS</div>
+            <div class="ministry-subtitle">AND THE DIGITAL ECONOMY</div>
+            <div class="government-text">Republic of Kenya</div>
+          </div>
+        </div>
+        
+        <!-- Staff Portal Indicator -->
+        <div class="ms-auto d-none d-md-block">
+          <span class="staff-portal-badge">
+            <i class="fas fa-user-tie me-1"></i> Staff Portal
+          </span>
+        </div>
       </div>
-      <div class="ms-auto d-none d-md-block fw-bold">Staff Portal</div>
     </div>
+  </div>
 
-    <nav class="navbar navbar-expand-lg navbar-dark staff-navbar">
-      <div class="container">
-        <a class="navbar-brand" href="{{ url_for('staff.staff_dashboard') }}">
-          <img src="{{ url_for('static', filename='images/MICDE_LOGO.png') }}" style="height: 40px;">
-        </a>
+  <!-- Main Navigation Bar -->
+  <nav class="navbar navbar-expand-lg navbar-dark main-navigation">
+    <div class="container">
+      <!-- Ministry Logo with System Name -->
+      <a class="navbar-brand" href="{{ url_for('staff.staff_dashboard') }}">
+        <img src="{{ url_for('static', filename='images/MICDE_LOGO.png') }}" 
+             alt="MICDE Logo" 
+             class="ministry-logo me-2">
+        <span class="system-name">Leave Management System</span>
+      </a>
 
-        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navMenu">
-          <span class="navbar-toggler-icon"></span>
-        </button>
+      <!-- Mobile Toggle Button -->
+      <button class="navbar-toggler" type="button" 
+              data-bs-toggle="collapse" 
+              data-bs-target="#mainNavMenu"
+              aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
 
-        <div class="collapse navbar-collapse" id="navMenu">
-          <ul class="navbar-nav me-auto">
-            <li class="nav-item">
-              <a class="nav-link" href="{{ url_for('staff.staff_dashboard') }}">
-                <i class="fas fa-tachometer-alt me-1"></i> Dashboard
+      <!-- Navigation Menu -->
+      <div class="collapse navbar-collapse" id="mainNavMenu">
+        <ul class="navbar-nav me-auto">
+          <li class="nav-item">
+            <a class="nav-link {% if request.endpoint == 'staff.staff_dashboard' %}active{% endif %}" 
+               href="{{ url_for('staff.staff_dashboard') }}">
+              <i class="fas fa-tachometer-alt me-2"></i>Dashboard
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link {% if request.endpoint == 'main.home' %}active{% endif %}" 
+               href="{{ url_for('main.home') }}">
+              <i class="fas fa-home me-2"></i>Home
+            </a>
+          </li>
+        </ul>
+
+        <!-- User Dropdown with Functional Items -->
+        {% if 'staff_logged_in' in session %}
+        <div class="dropdown ms-lg-3">
+          <button class="btn btn-user dropdown-toggle" 
+                  type="button" 
+                  id="userDropdown"
+                  data-bs-toggle="dropdown"
+                  aria-expanded="false">
+            <i class="fas fa-user-circle me-2"></i>
+            <span class="d-none d-sm-inline">{{ session.staff_name }}</span>
+          </button>
+          <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
+          <li>
+  <a class="dropdown-item" href="{{ url_for('staff.staff_profile') }}" id="openProfileModal">
+    <i class="fas fa-user me-2"></i>My Profile
+  </a>
+</li>
+
+            <li>
+              <a class="dropdown-item" href="{{ url_for('staff.forgot_password') }}">
+                <i class="fas fa-key me-2"></i>Change Password
               </a>
             </li>
-            <li class="nav-item">
-              <a class="nav-link" href="{{ url_for('main.home') }}">
-                <i class="fas fa-home me-1"></i> Home
+            <li>
+              <a class="dropdown-item" href="{{ url_for('staff.notification_settings') }}">
+                <i class="fas fa-bell me-2"></i>Notification Settings
+              </a>
+            </li>
+            <li><hr class="dropdown-divider"></li>
+            <li>
+              <a class="dropdown-item" href="{{ url_for('staff.staff_logout') }}">
+                <i class="fas fa-sign-out-alt me-2"></i>Logout
               </a>
             </li>
           </ul>
-          {% if 'staff_logged_in' in session %}
-          <a href="{{ url_for('staff.staff_logout') }}" class="btn logout-btn btn-sm">
-            <i class="fas fa-sign-out-alt me-1"></i> Logout
-          </a>
-          {% endif %}
         </div>
+        {% endif %}
       </div>
-    </nav>
+    </div>
+  </nav>
+</div>
+
+<!-- Profile Modal (Example for My Profile functionality) -->
+<div class="modal fade" id="profileModal" tabindex="-1" aria-labelledby="profileModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header bg-primary text-white">
+        <h5 class="modal-title" id="profileModalLabel">My Profile</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <!-- Profile content will be loaded here via AJAX -->
+        <div id="profileContent"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        <button type="button" class="btn btn-primary">Save Changes</button>
+      </div>
+    </div>
   </div>
+</div>
 
   <!-- ✅ Flash Toasts -->
   <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1100;">
@@ -142,15 +388,114 @@
   <div class="main-content container">
     {% block content %}{% endblock %}
   </div>
-
+<!-- Add this near the bottom of your base.html before the closing body tag -->
+<div class="modal fade" id="dynamicModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="dynamicModalLabel">Loading...</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="modalContent">
+                <!-- Content will be loaded here dynamically -->
+            </div>
+        </div>
+    </div>
+</div>
   <!-- Bootstrap JS -->
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-  <script>
-    document.addEventListener("DOMContentLoaded", function () {
-      document.querySelectorAll('.toast').forEach(toastEl => {
-        new bootstrap.Toast(toastEl, { delay: 5000 }).show();
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  // Toast Notifications Initialization
+  function initializeToasts() {
+    document.querySelectorAll('.toast').forEach(toastEl => {
+      try {
+        new bootstrap.Toast(toastEl, { 
+          delay: 5000,
+          autohide: true 
+        }).show();
+      } catch (error) {
+        console.error('Toast initialization error:', error);
+      }
+    });
+  }
+
+  // Dropdown and Profile Modal Functionality
+  function setupUserDropdown() {
+    // Initialize Bootstrap dropdowns
+    const dropdowns = document.querySelectorAll('.dropdown-toggle');
+    dropdowns.forEach(dropdownEl => {
+      try {
+        new bootstrap.Dropdown(dropdownEl);
+      } catch (error) {
+        console.error('Dropdown initialization error:', error);
+      }
+    });
+
+    // Profile modal handling
+    const profileModalEl = document.getElementById('profileModal');
+    if (profileModalEl) {
+      const profileModal = new bootstrap.Modal(profileModalEl);
+      const profileLink = document.getElementById('openProfileModal');
+      if (profileLink) {
+        profileLink.addEventListener('click', async function(e) {
+          e.preventDefault();
+          
+          try {
+            // Show loading state
+            document.getElementById('profileContent').innerHTML = `
+              <div class="text-center py-4">
+                <div class="spinner-border text-primary" role="status">
+                  <span class="visually-hidden">Loading...</span>
+                </div>
+                <p class="mt-2">Loading profile...</p>
+              </div>
+            `;
+            
+            profileModal.show();
+            
+            // Fetch profile data
+            const response = await fetch("{{ url_for('staff.staff_profile') }}");
+            if (!response.ok) throw new Error('Network response was not ok');
+            
+            const data = await response.text();
+            document.getElementById('profileContent').innerHTML = data;
+            
+            // Initialize any form validation or components in the modal
+          } catch (error) {
+            console.error('Profile load error:', error);
+            document.getElementById('profileContent').innerHTML = `
+              <div class="alert alert-danger">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                Failed to load profile data. Please try again later.
+              </div>
+            `;
+          }
+        });
+      }
+    }
+
+    // Dropdown active state management
+    document.querySelectorAll('.dropdown').forEach(dropdown => {
+      dropdown.addEventListener('show.bs.dropdown', function() {
+        this.classList.add('dropdown-show');
+      });
+      
+      dropdown.addEventListener('hide.bs.dropdown', function() {
+        this.classList.remove('dropdown-show');
       });
     });
-  </script>
+  }
+
+  // Initialize all functionality
+  function init() {
+    initializeToasts();
+    setupUserDropdown();
+  }
+
+  // Start the application
+  init();
+});
+</script>
 </body>
 </html>

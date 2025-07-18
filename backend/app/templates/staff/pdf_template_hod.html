@@ -123,7 +123,7 @@
     </div>
 
     <div style="margin-top: 10px;">
-        I hereby apply for <span class="underline" style="width: 40px;">{{ app.leave_days }}</span> days annual leave beginning on 
+        I hereby apply for <span class="underline">{{ app.leave_days }}</span> days {{ app.leave_type | lower }} leave beginning on 
         <span class="underline" style="width: 80px;">{{ app.start_date.strftime('%d/%m/%Y') if app.start_date else '' }}</span> to 
         <span class="underline" style="width: 80px;">{{ app.end_date.strftime('%d/%m/%Y') if app.end_date else '' }}</span>
     </div>
@@ -133,13 +133,18 @@
         <span class="underline" style="width: 80px;">{{ app.last_leave_end.strftime('%d/%m/%Y') if app.last_leave_end else 'N/A' }}</span>
     </div>
 
-    <div style="margin-top: 10px;">
-        Total leave days balance to date is 
-<span class="underline" style="width: 40px;">
-    {{ app.leave_balance if app.leave_balance is not none else 'N/A' }}
-</span> days
+<div style="margin-top: 10px;">
+    {% if app.max_days %}
+        Total {{ app.leave_type }} leave balance to date is 
+        <span class="underline" style="width: 40px;">
+            {{ app.remaining_balance }}
+        </span> days (out of {{ app.max_days }})
+    {% else %}
+        Leave balance is not tracked for this leave type.
+    {% endif %}
+</div>
 
-    </div>
+
 
     <div style="margin-top: 15px;">
         2. While on leave, my contact will be:
@@ -162,6 +167,10 @@
             {% endif %}
         </div>
     </div>
+    <div style="margin-top: 10px;">
+    2b. Work delegated to: 
+    <span class="underline" style="width: 200px;">{{ app.delegate or 'Not specified' }}</span>
+</div>
 
     <div style="margin-top: 15px;">
         3. During the period of my leave salary should:

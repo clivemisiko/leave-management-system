@@ -243,60 +243,6 @@
             </div>
         </div>
     </div>
-<div class="card micde-card mt-4">
-    <div class="card-header micde-card-header d-flex justify-content-between align-items-center">
-        <h5 class="mb-0"><i class="fas fa-users me-2"></i>Staff Members</h5>
-    </div>
-    <div class="card-body">
-        <div class="table-responsive">
-            <table class="table table-hover">
-                <thead>
-                    <tr>
-                        <th>#</th>
-                        <th>P/No</th>
-                        <th>Name</th>
-                        <th>Email</th>
-                        <th>Account Created</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for staff in staff_list %}
-                    <tr>
-                        <td>{{ loop.index }}</td>
-                        <td>{{ staff.pno }}</td>
-                        <td>{{ staff.username }}</td>
-                        <td>{{ staff.email or 'N/A' }}</td>
-                        <td>
-                            {% if staff.date_created %}  {# Changed from created_at to date_created #}
-                                {{ staff.date_created.strftime('%Y-%m-%d %H:%M') }}
-                            {% else %}
-                                Not available
-                            {% endif %}
-                        </td>
-                        <td>
-                            <div class="d-flex gap-2">
-                                <form action="{{ url_for('admin.delete_staff', staff_id=staff.id) }}" method="POST" class="d-inline">
-                                    <button type="submit" class="btn btn-sm btn-danger"
-                                        onclick="return confirm('Are you sure you want to delete this staff member and all their applications?');"
-                                        title="Delete Staff">
-                                        <i class="fas fa-user-times"></i>
-                                    </button>
-                                </form>
-                            </div>
-                        </td>
-                    </tr>
-                    {% else %}
-                    <tr>
-                        <td colspan="6" class="text-center text-muted">No staff members found</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </div>
-</div>
-
 
     <!-- Applications Table -->
     <div class="card micde-card">

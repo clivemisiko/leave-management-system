@@ -93,13 +93,18 @@ def admin_logout():
 def view_staff_members():
     try:
         conn = get_mysql_connection()
-        cur = conn.cursor()
-        cur.execute("SELECT * FROM staff")
-        staff_members = cur.fetchall()
-        return render_template('admin/view_staff.html', staff_list=staff_members)
+        cur = conn.cursor(pymysql.cursors.DictCursor)
+        cur.execute("SELECT * FROM staff ORDER BY date_created DESC")
+        staff_list = cur.fetchall()
     except Exception as e:
-        flash(f'Error fetching staff: {e}', 'danger')
-        return redirect(url_for('admin.admin_dashboard'))
+        current_app.logger.error(f"Error fetching staff members: {e}")
+        flash("Could not load staff members.", "danger")
+        staff_list = []
+    finally:
+        cur.close()
+        conn.close()
+
+    return render_template('admin/staff_members.html', staff_list=staff_list)
 
 # --- Delete Staff Member ---
 
@@ -167,7 +172,16 @@ def create_application():
             leave_balance_raw = request.form.get('leave_balance', '')
             leave_balance = int(leave_balance_raw) if leave_balance_raw.isdigit() else 0
 
+            # Try to fetch staff ID (optional)
+            conn = get_mysql_connection()
+            cur = conn.cursor(pymysql.cursors.DictCursor)
+            cur.execute("SELECT id FROM staff WHERE pno = %s", (request.form['pno'],))
+            staff_row = cur.fetchone()
+            staff_id = staff_row['id'] if staff_row else None  # NULL if staff doesn't exist
+
+            # Prepare data
             form_data = {
+                'staff_id': staff_id,
                 'name': request.form['name'],
                 'pno': request.form['pno'],
                 'designation': request.form['designation'],
@@ -179,7 +193,7 @@ def create_application():
                 'salary_continue': salary_continue,
                 'salary_address': salary_address,
                 'delegate': request.form.get('delegate', '').strip(),
-                'outside_country': 'outside_country' in request.form,
+                'outside_country': 1 if 'outside_country' in request.form else 0,
                 'leave_balance': leave_balance,
                 'last_leave_start': last_leave_start,
                 'last_leave_end': last_leave_end,
@@ -194,28 +208,16 @@ def create_application():
                 flash('Payment address is required when not continuing bank payments', 'danger')
                 return redirect(url_for('admin.create_application'))
 
-
-
-            conn = get_mysql_connection()
-            cur = conn.cursor()
-            cur.execute("SELECT * FROM leave_applications")
-            data = cur.fetchall()
-
+            # Insert into DB
             cur.execute("""
                 INSERT INTO leave_applications 
-                (name, pno, designation, leave_days, start_date, end_date, 
+                (staff_id, name, pno, designation, leave_days, start_date, end_date, 
                  contact_address, contact_tel, salary_continue, salary_address,
                  delegate, outside_country, leave_balance, last_leave_start, last_leave_end, leave_type)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """, tuple(form_data.values()))
-            conn = get_mysql_connection()
-
-            cur = conn.cursor()
 
             conn.commit()
-            conn.rollback()
-
-
             flash('Application created successfully', 'success')
             return redirect(url_for('admin.admin_dashboard'))
 
@@ -223,18 +225,17 @@ def create_application():
             flash(f'Invalid data format: {str(e)}', 'danger')
             return redirect(url_for('admin.create_application'))
         except Exception as e:
-            conn = get_mysql_connection()
-            cur = conn.cursor()
-            conn.commit()
-            conn.rollback()
-
             flash(f'Error creating application: {str(e)}', 'danger')
             return redirect(url_for('admin.create_application'))
         finally:
             if 'cur' in locals():
                 cur.close()
+            if 'conn' in locals():
+                conn.close()
 
     return render_template('admin/create_application.html')
+
+
 
 @admin_bp.route('/dashboard')
 @admin_bp.route('/dashboard/<status_filter>')
@@ -423,7 +424,8 @@ def approve_application(app_id):
         approval_comments = request.form.get('approval_comments', '').strip()
 
         try:
-            cur.execute("SELECT staff_id, leave_days, status FROM leave_applications WHERE id = %s", (app_id,))
+            # ✅ Fetch application details
+            cur.execute("SELECT * FROM leave_applications WHERE id = %s", (app_id,))
             application = cur.fetchone()
             if not application:
                 flash('Application not found', 'danger')
@@ -433,16 +435,30 @@ def approve_application(app_id):
                 flash('Application already approved', 'info')
                 return redirect(url_for('admin.admin_dashboard'))
 
-            cur.execute("SELECT leave_balance, email, username FROM staff WHERE id = %s FOR UPDATE", (application['staff_id'],))
-            staff = cur.fetchone()
+            staff_id = application['staff_id']
+            leave_days = application['leave_days']
+            leave_type = application['leave_type']
 
-            if staff['leave_balance'] < application['leave_days']:
-                flash('Insufficient leave balance', 'warning')
+            # ✅ Fetch staff leave balance, email, name
+            cur.execute("SELECT leave_balance, email, username FROM staff WHERE id = %s FOR UPDATE", (staff_id,))
+            staff = cur.fetchone()
+            if not staff:
+                flash('Staff not found', 'danger')
                 return redirect(url_for('admin.admin_dashboard'))
 
-            # ✅ Deduct balance and approve
-            cur.execute("UPDATE staff SET leave_balance = leave_balance - %s WHERE id = %s",
-                        (application['leave_days'], application['staff_id']))
+            # ✅ Check and deduct only if Annual leave
+            if leave_type == 'Annual':
+                if staff['leave_balance'] < leave_days:
+                    flash('Insufficient annual leave balance', 'warning')
+                    return redirect(url_for('admin.admin_dashboard'))
+
+                cur.execute("""
+                    UPDATE staff 
+                    SET leave_balance = leave_balance - %s 
+                    WHERE id = %s
+                """, (leave_days, staff_id))
+
+            # ✅ Approve leave
             cur.execute("""
                 UPDATE leave_applications 
                 SET status = 'approved', approved_at = NOW(), approved_by = %s, approval_comments = %s
@@ -451,16 +467,17 @@ def approve_application(app_id):
 
             conn.commit()
 
+            # ✅ Log & Notify
             log_action(f"Admin {session['admin_username']} approved leave ID {app_id}",
                        admin_username=session['admin_username'])
 
             send_email(
                 subject="Leave Approved",
                 recipients=[staff['email']],
-                body=f"Hello {staff['username']},\n\nYour leave request has been approved. Kindly login and print your leave form!"
+                body=f"Hello {staff['username']},\n\nYour {leave_type} leave request has been approved. Kindly login and print your leave form."
             )
 
-            flash('Application approved successfully', 'success')
+            flash(f'{leave_type} leave approved successfully.', 'success')
             return redirect(url_for('admin.admin_dashboard'))
 
         except Exception as e:
@@ -477,8 +494,6 @@ def approve_application(app_id):
     cur.close()
 
     return render_template('admin/approve_form.html', app=app)
-
-
 
 @admin_bp.route('/application/reject/<int:id>', methods=['GET', 'POST'])
 @admin_required
@@ -561,6 +576,7 @@ def print_application(id):
             SELECT la.*,
                    COALESCE(s.username, la.name) AS name,
                    COALESCE(s.pno, la.pno) AS pno,
+                   s.leave_balance,
                    CASE
                        WHEN la.designation LIKE '%%HOD%%' OR la.designation LIKE '%%Head%%'
                        THEN 1 ELSE 0
@@ -580,7 +596,7 @@ def print_application(id):
             flash("Only approved applications can be printed.", "warning")
             return redirect(url_for('admin.admin_dashboard'))
 
-        # Convert date strings to date objects if necessary
+        # Convert string dates to date objects if needed
         for field in ['start_date', 'end_date', 'last_leave_start', 'last_leave_end']:
             if application.get(field) and isinstance(application[field], str):
                 try:
@@ -588,6 +604,28 @@ def print_application(id):
                 except ValueError:
                     current_app.logger.warning(f"Invalid date format in field: {field}")
                     application[field] = None
+
+        # Define leave type limits
+        leave_type_limits = {
+        "Annual": 30,
+        "Sick": 30,
+        "Maternity": 90,
+        "Paternity": 14,
+        "Compassionate": 7
+    }
+
+        leave_type = application.get('leave_type')
+        max_days = leave_type_limits.get(leave_type)
+        leave_days = int(application.get('leave_days', 0))
+
+        # For fixed-duration leave types (not Annual), calculate remaining balance
+        if leave_type == 'Annual':
+            application['max_days'] = max_days
+            application['remaining_balance'] = application.get('leave_balance')  # from DB
+        else:
+            application['max_days'] = max_days
+            application['remaining_balance'] = max_days - leave_days if max_days else None
+      
 
         # ✅ Load logo and signature
         logo_base64 = current_app.get_logo_base64()
@@ -598,16 +636,17 @@ def print_application(id):
         if not signature_base64:
             current_app.logger.warning("⚠️ Signature not found or couldn't be loaded")
 
-        # ✅ Select template
+        # ✅ Choose template
         template_name = 'admin/pdf_template_hod.html' if application['is_hod'] else 'admin/pdf_template_staff.html'
 
-        # ✅ Render and generate PDF
+        # ✅ Render and return PDF
         rendered_html = render_template(
             template_name,
             app=application,
             logo_base64=logo_base64,
             signature_base64=signature_base64
         )
+
         pdf = HTML(string=rendered_html, base_url=request.url_root).write_pdf()
 
         response = make_response(pdf)
@@ -623,39 +662,40 @@ def print_application(id):
 @admin_bp.route('/staff/delete/<int:staff_id>', methods=['POST'])
 @admin_required
 def delete_staff(staff_id):
-    conn = get_mysql_connection()
-    cur = conn.cursor()
-    conn.commit()
-    conn.rollback()
     try:
-        # Fetch staff info to confirm existence
-        cur.execute("SELECT * FROM staff WHERE id = %s", (staff_id,))
+        conn = get_mysql_connection()
+        cur = conn.cursor(pymysql.cursors.DictCursor)
+
+        # Step 1: Check staff exists
+        cur.execute("SELECT username FROM staff WHERE id = %s", (staff_id,))
         staff = cur.fetchone()
-
         if not staff:
-            flash('Staff member not found.', 'danger')
-            return redirect(url_for('admin.admin_dashboard'))
+            flash('Staff not found.', 'danger')
+            return redirect(url_for('admin.view_staff_members'))
 
-        # Delete the staff record (leave_applications will be deleted automatically)
+        username = staff['username']
+
+        # Step 2: Delete related leave applications
+        cur.execute("DELETE FROM leave_applications WHERE staff_id = %s", (staff_id,))
+
+        # Step 3: Delete the staff record
         cur.execute("DELETE FROM staff WHERE id = %s", (staff_id,))
-        conn = get_mysql_connection()
-
-        cur = conn.cursor()
 
         conn.commit()
-        conn.rollback()
-        flash(f"Staff {staff['username']} and their applications deleted successfully.", "success")
+        flash(f"Staff '{username}' and their applications deleted successfully.", "success")
+
     except Exception as e:
-        conn = get_mysql_connection()
-        cur = conn.cursor()
-        conn.commit()
         conn.rollback()
-        current_app.logger.error(f"Error deleting staff: {str(e)}")
-        flash("Error deleting staff member.", "danger")
+        import traceback
+        current_app.logger.error(f"Error deleting staff: {str(e)}\n{traceback.format_exc()}")
+        flash("An error occurred while deleting the staff.", "danger")
+
     finally:
         cur.close()
+        conn.close()
 
-    return redirect(url_for('admin.admin_dashboard'))
+    return redirect(url_for('admin.view_staff_members'))
+
 
 @admin_bp.route('/home')
 def admin_home_redirect():

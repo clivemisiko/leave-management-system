@@ -10,28 +10,71 @@
         </div>
 
         <div class="card-body">
-                <form method="POST" action="{{ url_for('staff.preview_application') }}" id="staffLeaveForm" enctype="multipart/form-data">                <!-- Leave Details -->
-                <div class="mb-4">
+            <form method="POST" action="{{ url_for('staff.preview_application') }}" id="staffLeaveForm" enctype="multipart/form-data">
+                
+                <!-- Section 1: Leave Details -->
+                <section class="mb-4">
                     <h5 class="border-bottom pb-2 mb-3 text-primary">Leave Details</h5>
                     <div class="row g-3">
-                        <div class="col-md-3">
-                            <label class="form-label fw-semibold">Days Requested <span class="text-danger">*</span></label>
-                            <input type="number" name="leave_days" class="form-control border-primary" id="leaveDays" min="1" required>
-                            <small class="text-muted">Minimum 1 day</small>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Leave Type <span class="text-danger">*</span></label>
+                            <select id="leave_type" name="leave_type" class="form-select border-primary" required>
+                                <option value="" disabled selected>Select type</option>
+                                <option value="Annual">Annual</option>
+                                <option value="Sick">Sick</option>
+                                <option value="Maternity">Maternity</option>
+                                <option value="Paternity">Paternity</option>
+                                <option value="Compassionate">Compassionate</option>
+                                <option value="Study">Study</option>
+                                <option value="Unpaid">Unpaid</option>
+                            </select>
+                            <div id="entitlementMessage" class="form-text text-primary mt-1"></div>
                         </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">Days Requested <span class="text-danger">*</span></label>
+                            <input type="number" name="leave_days" class="form-control border-primary" id="leave_days" min="1" required placeholder="Enter number of leave days">
+                            <div id="leave-warning" class="form-text text-danger d-none"></div>
+                        </div>
+
                         <div class="col-md-4">
                             <label class="form-label fw-semibold">Start Date <span class="text-danger">*</span></label>
                             <input type="date" name="start_date" class="form-control border-primary" id="startDate" required>
                         </div>
-                        <div class="col-md-5">
+
+                        <div class="col-md-4">
                             <label class="form-label fw-semibold">End Date</label>
                             <input type="date" name="end_date" class="form-control bg-light" id="endDate" readonly>
                         </div>
                     </div>
-                </div>
+                </section>
 
-                <!-- First Time Applying -->
-                <div class="mb-4">
+                <!-- Section 2: Staff Information -->
+                <section class="mb-4">
+                    <h5 class="border-bottom pb-2 mb-3 text-primary">Staff Information</h5>
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label for="pno" class="form-label">P/Number</label>
+                            <input type="text" id="pno" name="pno" class="form-control" 
+                                value="{{ session.staff_pno }}" readonly>
+                        </div>
+
+                        <div class="col-md-4">
+                            <label for="username" class="form-label">Full Name</label>
+                            <input type="text" id="username" name="username" class="form-control" 
+                                value="{{ session.staff_name }}" readonly>
+                        </div>
+
+                        <div class="col-md-4">
+                            <label for="designation" class="form-label">Designation</label>
+                            <input type="text" id="designation" name="designation" class="form-control" 
+                                value="{{ session.staff_designation }}" readonly>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Section 3: Previous Leave Information -->
+                <section class="mb-4">
                     <label class="form-label fw-semibold">Is this your first time applying for leave? <span class="text-danger">*</span></label>
                     <div class="btn-group" role="group">
                         <input type="radio" class="btn-check" name="first_time" value="yes" id="firstTimeYes" required>
@@ -40,25 +83,24 @@
                         <input type="radio" class="btn-check" name="first_time" value="no" id="firstTimeNo" required>
                         <label class="btn btn-outline-primary" for="firstTimeNo">No</label>
                     </div>
-                </div>
-
-                <!-- Last Leave Dates (hidden unless "No" is selected) -->
-                <div id="lastLeaveDates" class="mb-4 p-3 bg-light rounded" style="display: none;">
-                    <h5 class="border-bottom pb-2 mb-3 text-primary">Previous Leave Information</h5>
-                    <div class="row g-3">
-                        <div class="col-md-6">
-                            <label class="form-label fw-semibold">Last Leave Start Date</label>
-                            <input type="date" name="last_leave_start" class="form-control border-primary">
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label fw-semibold">Last Leave End Date</label>
-                            <input type="date" name="last_leave_end" class="form-control border-primary">
+                    
+                    <div id="lastLeaveDates" class="mt-3 p-3 bg-light rounded" style="display: none;">
+                        <h6 class="border-bottom pb-2 mb-3 text-primary">Previous Leave Information</h6>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Last Leave Start Date</label>
+                                <input type="date" name="last_leave_start" class="form-control border-primary">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Last Leave End Date</label>
+                                <input type="date" name="last_leave_end" class="form-control border-primary">
+                            </div>
                         </div>
                     </div>
-                </div>
+                </section>
 
-                <!-- Contact Info -->
-                <div class="mb-4">
+                <!-- Section 4: Contact Information -->
+                <section class="mb-4">
                     <h5 class="border-bottom pb-2 mb-3 text-primary">Contact During Leave</h5>
                     <div class="row g-3">
                         <div class="col-md-8">
@@ -72,35 +114,11 @@
                             <small class="text-muted">Phone number</small>
                         </div>
                     </div>
-                </div>
+                </section>
 
-                <!-- Leave Type and Designation -->
-                <div class="row g-3 mb-4">
-                    <div class="col-md-6">
-                        <label class="form-label fw-semibold">Leave Type <span class="text-danger">*</span></label>
-                        <select name="leave_type" class="form-select border-primary" required>
-                            <option value="" disabled selected>Select type</option>
-                            <option value="Annual">Annual</option>
-                            <option value="Sick">Sick</option>
-                            <option value="Maternity">Maternity</option>
-                            <option value="Paternity">Paternity</option>
-                            <option value="Study">Study</option>
-                            <option value="Unpaid">Unpaid</option>
-                        </select>
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label fw-semibold">Designation <span class="text-danger">*</span></label>
-                        <select name="designation" class="form-select border-primary" required>
-                            <option value="" disabled selected>Select designation</option>
-                            <option value="Head of Department">Head of Department</option>
-                            <option value="Staff Member">Staff Member</option>
-                        </select>
-                    </div>
-                </div>
-
-                <!-- Salary Options -->
-                <div class="mb-4">
-                    <label class="form-label fw-semibold">Salary Payment Method</label>
+                <!-- Section 5: Salary Options -->
+                <section class="mb-4">
+                    <h5 class="border-bottom pb-2 mb-3 text-primary">Salary Payment Method</h5>
                     <div class="btn-group" role="group">
                         <input type="radio" class="btn-check" name="salary_option" value="continue" id="salaryContinue" checked>
                         <label class="btn btn-outline-primary" for="salaryContinue">Continue Bank Deposit</label>
@@ -113,23 +131,26 @@
                         <input type="text" name="salary_address" id="salary_address" class="form-control border-primary">
                         <small class="text-muted">Provide address if not through bank</small>
                     </div>
-                </div>
+                </section>
 
-                <!-- Delegated Worker -->
-                <div class="mb-4">
+                <!-- Section 6: Delegation -->
+                <section class="mb-4">
+                    <h5 class="border-bottom pb-2 mb-3 text-primary">Work Delegation</h5>
                     <label class="form-label fw-semibold">Delegated Worker</label>
                     <input type="text" name="delegate" class="form-control border-primary" placeholder="Enter full name of person covering your duties">
                     <small class="text-muted">Who will handle your responsibilities?</small>
-                </div>
+                </section>
 
-              <!-- Form Buttons -->
-                <div class="mb-4">
+                <!-- Section 7: Supporting Documents -->
+                <section class="mb-4">
+                    <h5 class="border-bottom pb-2 mb-3 text-primary">Supporting Documents</h5>
                     <label class="form-label fw-semibold">Supporting Document (optional)</label>
                     <input type="file" name="supporting_doc" class="form-control border-primary"
                         accept=".pdf,.jpg,.jpeg,.png,.doc,.docx">
                     <small class="text-muted">Attach medical letter, study proof, or other support docs</small>
-                </div>
+                </section>
 
+                <!-- Form Buttons -->
                 <div class="d-flex justify-content-between mt-4 pt-3 border-top">
                     <button type="button" class="btn btn-outline-secondary" onclick="history.back()">
                         <i class="bi bi-arrow-left me-2"></i>Cancel
@@ -143,66 +164,133 @@
                         </button>
                     </div>
                 </div>
-
             </form>
         </div>
     </div>
 </div>
 
+<!-- Toast Notification -->
+<div class="position-fixed top-0 start-50 translate-middle-x p-3" style="z-index: 1080">
+    <div id="leaveToast" class="toast align-items-center text-bg-danger border-0" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="d-flex">
+            <div class="toast-body" id="leaveToastMessage"></div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+    </div>
+</div>
+
+<!-- JavaScript -->
 <script>
-    // Show/hide salary address field based on radio button
-    const radios = document.querySelectorAll('input[name="salary_option"]');
+document.addEventListener('DOMContentLoaded', function() {
+    // Leave type and days validation
+    const leaveType = document.getElementById('leave_type');
+    const leaveDays = document.getElementById('leave_days');
+    const warning = document.getElementById('leave-warning');
+    const entitlementMessage = document.getElementById('entitlementMessage');
+    const form = document.querySelector("form");
+
+    const leaveEntitlements = {
+        "Annual": 30,
+        "Sick": 30,
+        "Maternity": 90,
+        "Paternity": 14,
+        "Compassionate": 7,
+        "Study": null,
+        "Unpaid": null
+    };
+
+    // Show/hide previous leave dates
+    const firstTimeRadios = document.querySelectorAll('input[name="first_time"]');
+    const lastLeaveSection = document.getElementById("lastLeaveDates");
+    
+    firstTimeRadios.forEach(radio => {
+        radio.addEventListener("change", () => {
+            lastLeaveSection.style.display = document.getElementById("firstTimeNo").checked 
+                ? "block" 
+                : "none";
+        });
+    });
+
+    // Show/hide salary address field
+    const salaryRadios = document.querySelectorAll('input[name="salary_option"]');
     const addressGroup = document.getElementById('salary-address-group');
     
-    radios.forEach(r => r.addEventListener('change', () => {
-        if (document.querySelector('input[name="salary_option"]:checked').value === 'alternate') {
-            addressGroup.style.display = 'block';
-        } else {
-            addressGroup.style.display = 'none';
-        }
-    }));
-</script>
+    salaryRadios.forEach(radio => {
+        radio.addEventListener('change', () => {
+            addressGroup.style.display = document.querySelector('input[name="salary_option"]:checked').value === 'alternate' 
+                ? 'block' 
+                : 'none';
+        });
+    });
 
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-    const startDate = document.getElementById('startDate');
-    const leaveDays = document.getElementById('leaveDays');
-    const endDate = document.getElementById('endDate');
+    // Update end date calculation
+    function addWorkingDays(startDate, days) {
+        const date = new Date(startDate);
+        let added = 0;
+        while (added < days) {
+            date.setDate(date.getDate() + 1);
+            const day = date.getDay();
+            if (day !== 0 && day !== 6) {
+                added++;
+            }
+        }
+        return date;
+    }
 
     function updateEndDate() {
-        const start = new Date(startDate.value);
-        const days = parseInt(leaveDays.value);
-        if (!isNaN(start.getTime()) && days > 0) {
-            const calculatedEnd = new Date(start);
-            calculatedEnd.setDate(calculatedEnd.getDate() + days - 1);
-            endDate.value = calculatedEnd.toISOString().split('T')[0];
+        const startDate = document.getElementById("startDate").value;
+        const leaveDays = parseInt(document.getElementById("leave_days").value);
+        const endDateInput = document.getElementById("endDate");
+
+        if (startDate && leaveDays && leaveDays > 0) {
+            const resultDate = addWorkingDays(startDate, leaveDays - 1);
+            const yyyy = resultDate.getFullYear();
+            const mm = String(resultDate.getMonth() + 1).padStart(2, "0");
+            const dd = String(resultDate.getDate()).padStart(2, "0");
+            endDateInput.value = `${yyyy}-${mm}-${dd}`;
         } else {
-            endDate.value = '';
+            endDateInput.value = "";
         }
     }
 
-    startDate.addEventListener('change', updateEndDate);
-    leaveDays.addEventListener('input', updateEndDate);
-});
-</script>
+    // Event listeners
+    document.getElementById("startDate").addEventListener("change", updateEndDate);
+    document.getElementById("leave_days").addEventListener("input", updateEndDate);
 
-<script>
-document.addEventListener("DOMContentLoaded", function () {
-    const firstTimeRadios = document.getElementsByName("first_time");
-    const lastLeaveSection = document.getElementById("lastLeaveDates");
+    leaveType.addEventListener("change", function() {
+        const type = this.value;
+        const entitlement = leaveEntitlements[type];
 
-    firstTimeRadios.forEach(radio => {
-        radio.addEventListener("change", () => {
-            if (document.getElementById("firstTimeNo").checked) {
-                lastLeaveSection.style.display = "block";
-            } else {
-                lastLeaveSection.style.display = "none";
-            }
-        });
+        if (entitlement) {
+            entitlementMessage.textContent = `You are entitled to ${entitlement} days.`;
+            leaveDays.max = entitlement;
+        } else {
+            entitlementMessage.textContent = `Please enter the number of days manually.`;
+            leaveDays.removeAttribute("max");
+        }
     });
+
+    form.addEventListener("submit", function(e) {
+        const type = leaveType.value;
+        const entitlement = leaveEntitlements[type];
+        const entered = parseInt(leaveDays.value);
+
+        if (entitlement && entered > entitlement) {
+            e.preventDefault();
+            showToast(`You cannot request more than ${entitlement} days for ${type} leave.`);
+        }
+    });
+
+    function showToast(message) {
+        const toastMessage = document.getElementById('leaveToastMessage');
+        toastMessage.textContent = message;
+        const toastElement = new bootstrap.Toast(document.getElementById('leaveToast'));
+        toastElement.show();
+    }
 });
 </script>
 
+<!-- Custom Styles -->
 <style>
     .form-label {
         margin-bottom: 0.5rem;
@@ -223,6 +311,8 @@ document.addEventListener("DOMContentLoaded", function () {
     .bg-light {
         background-color: #f8f9fa!important;
     }
+    section {
+        margin-bottom: 2rem;
+    }
 </style>
-
 {% endblock %}

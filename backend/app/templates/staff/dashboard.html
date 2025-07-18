@@ -143,9 +143,70 @@
         height: 3px;
         background-color: var(--ict-dark-blue);
     }
+    
     .fa-file-pdf { color: #d9534f; }
     .fa-file-word { color: #0275d8; }
     .fa-file-image { color: #5cb85c; }
+
+    .summary-cards-row {
+        margin-bottom: 1rem !important; /* Reduced from 1.5rem */
+    }
+
+    /* Adjust the table card margin */
+    .ict-card {
+        border: none;
+        background-color: white;
+        border-radius: 8px;
+        box-shadow: 0 0 15px rgba(0, 0, 0, 0.05);
+        transition: all 0.3s ease;
+        border-top: 4px solid var(--ict-blue);
+        margin-bottom: 15px; /* Reduced from 25px */
+    }
+    /* In dashboard.html */
+.stat-card {
+  border-radius: 8px;
+  transition: transform 0.2s;
+  border-left: none;
+  position: relative;
+  overflow: hidden;
+}
+
+.stat-card:hover {
+  transform: translateY(-3px);
+}
+
+.stat-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 5px;
+  height: 100%;
+}
+
+.stat-card.approved::before { background-color: var(--ict-green); }
+.stat-card.pending::before { background-color: var(--ict-gold); }
+.stat-card.rejected::before { background-color: var(--ict-red); }
+/* In dashboard.html */
+.table {
+  --bs-table-striped-bg: rgba(0, 102, 179, 0.05);
+}
+
+.table-hover tbody tr:hover {
+  background-color: rgba(0, 102, 179, 0.1);
+}
+
+@media (max-width: 768px) {
+  .table-responsive table, 
+  .table-responsive thead, 
+  .table-responsive tbody, 
+  .table-responsive th, 
+  .table-responsive td, 
+  .table-responsive tr { 
+    display: block; 
+  }
+  /* Add mobile-specific table styles */
+}
 </style>
 
 <div class="container-fluid px-4">
@@ -156,7 +217,11 @@
                 <h3 class="mb-1">Welcome, {{ session.staff_name }}</h3>
                 <div class="text-muted">
                     <span class="me-3">P/No: {{ session.staff_pno }}</span>
-                    <span>Leave Balance: <strong>{{ leave_balance }}</strong> days</span>
+                    <span>Annual Leave Balance: <strong>{{ leave_balance }}</strong> days</span>
+                    <br>
+                    <small class="text-muted d-block mt-1">
+                        <em>Note:</em> Sick, Maternity, Paternity, and Compassionate Leave are granted per policy and do not deduct from your annual leave balance.
+                    </small>
                 </div>
             </div>
             <div>
@@ -166,115 +231,116 @@
             </div>
         </div>
     </div>
+</div>
 
-    <!-- Toast Notifications -->
-    <div aria-live="polite" aria-atomic="true" class="position-relative">
-        <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1100;">
-            <!-- Manual Print Restriction Toast -->
-            <div id="approvalToast" class="toast align-items-center text-white bg-warning border-0" role="alert" aria-live="assertive" aria-atomic="true">
-                <div class="d-flex">
-                    <div class="toast-body" role="alert">
-                        <i class="fas fa-exclamation-triangle me-2"></i>
-                        You can only print approved leave applications
-                    </div>
-                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+<!-- Toast Notifications -->
+<div aria-live="polite" aria-atomic="true" class="position-relative">
+    <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1100;">
+        <!-- Manual Print Restriction Toast -->
+        <div id="approvalToast" class="toast align-items-center text-white bg-warning border-0" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="d-flex">
+                <div class="toast-body" role="alert">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    You can only print approved leave applications
                 </div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
             </div>
+        </div>
 
-            <!-- Flask Flash Messages -->
-            {% with messages = get_flashed_messages(with_categories=true) %}
-                {% if messages %}
-                    {% for category, message in messages %}
-                        <div class="toast align-items-center text-white bg-{{ category if category in ['success', 'warning', 'danger', 'info'] else 'secondary' }} border-0" role="alert" aria-live="assertive" aria-atomic="true">
-                            <div class="d-flex">
-                                <div class="toast-body" role="alert">
-                                    <i class="fas 
-                                    {% if category == 'success' %}fa-check-circle
-                                    {% elif category == 'warning' %}fa-exclamation-triangle
-                                    {% elif category == 'danger' %}fa-times-circle
-                                    {% elif category == 'info' %}fa-info-circle
-                                    {% else %}fa-bell{% endif %} me-2"></i>
-                                    {{ message }}
-                                </div>
-                                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+        <!-- Flask Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="toast align-items-center text-white bg-{{ category if category in ['success', 'warning', 'danger', 'info'] else 'secondary' }} border-0" role="alert" aria-live="assertive" aria-atomic="true">
+                        <div class="d-flex">
+                            <div class="toast-body" role="alert">
+                                <i class="fas 
+                                {% if category == 'success' %}fa-check-circle
+                                {% elif category == 'warning' %}fa-exclamation-triangle
+                                {% elif category == 'danger' %}fa-times-circle
+                                {% elif category == 'info' %}fa-info-circle
+                                {% else %}fa-bell{% endif %} me-2"></i>
+                                {{ message }}
                             </div>
+                            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
                         </div>
-                    {% endfor %}
-                {% endif %}
-            {% endwith %}
-        </div>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
     </div>
+</div>
 
-    <!-- Summary Cards -->
-    <div class="row mb-4">
-        <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card stat-card h-100">
-                <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
-                                Total Applications</div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ total }}</div>
-                        </div>
-                        <div class="col-auto">
-                            <i class="fas fa-file-alt fa-2x text-gray-300"></i>
-                        </div>
+<!-- Summary Cards -->
+<div class="row summary-cards-row mb-2">  <!-- Changed from mb-4 to mb-2 -->
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card stat-card h-100">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                            Total Applications</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ total }}</div>
                     </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card stat-card approved h-100">
-                <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
-                                Approved</div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ approved }}</div>
-                        </div>
-                        <div class="col-auto">
-                            <i class="fas fa-check-circle fa-2x text-gray-300"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card stat-card pending h-100">
-                <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
-                                Pending</div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ pending }}</div>
-                        </div>
-                        <div class="col-auto">
-                            <i class="fas fa-hourglass-half fa-2x text-gray-300"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card stat-card rejected h-100">
-                <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">
-                                Rejected</div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ rejected }}</div>
-                        </div>
-                        <div class="col-auto">
-                            <i class="fas fa-times-circle fa-2x text-gray-300"></i>
-                        </div>
+                    <div class="col-auto">
+                        <i class="fas fa-file-alt fa-2x text-gray-300"></i>
                     </div>
                 </div>
             </div>
         </div>
     </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card stat-card approved h-100">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                            Approved</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ approved }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-check-circle fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card stat-card pending h-100">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                            Pending</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ pending }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-hourglass-half fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card stat-card rejected h-100">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">
+                            Rejected</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ rejected }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-times-circle fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 
 <!-- Applications Table -->
 <div class="card ict-card">
@@ -332,64 +398,63 @@
                             {% endif %}
                         </td>
                         <td>
-    <a href="{{ url_for('staff.view_application', app_id=app.id) }}"
-       class="btn btn-sm btn-outline-primary"
-       data-bs-toggle="tooltip" title="View application details">
-        <i class="fas fa-eye"></i> View
-    </a>
+                            <a href="{{ url_for('staff.view_application', app_id=app.id) }}"
+                               class="btn btn-sm btn-outline-primary"
+                               data-bs-toggle="tooltip" title="View application details">
+                                <i class="fas fa-eye"></i> View
+                            </a>
 
-    {% if app.status == 'approved' %}
-        <a href="{{ url_for('staff.print_application', app_id=app.id) }}"
-           class="btn btn-sm btn-outline-success"
-           data-bs-toggle="tooltip" title="Download approved application">
-            <i class="fas fa-print"></i> Print
-        </a>
-    {% else %}
-        <button type="button" class="btn btn-sm btn-outline-secondary show-toast"
-                data-bs-toggle="tooltip" title="Wait for admin approval before printing">
-            <i class="fas fa-print"></i> Print
-        </button>
-    {% endif %}
-</td>
-
+                            {% if app.status == 'approved' %}
+                                <a href="{{ url_for('staff.print_application', app_id=app.id) }}"
+                                   class="btn btn-sm btn-outline-success"
+                                   data-bs-toggle="tooltip" title="Download approved application">
+                                    <i class="fas fa-print"></i> Print
+                                </a>
+                            {% else %}
+                                <button type="button" class="btn btn-sm btn-outline-secondary show-toast"
+                                        data-bs-toggle="tooltip" title="Wait for admin approval before printing">
+                                    <i class="fas fa-print"></i> Print
+                                </button>
+                            {% endif %}
+                        </td>
                     </tr>
 
                     <!-- View Modal for this application -->
                     <div class="modal fade" id="viewModal{{ app.id }}" tabindex="-1" aria-labelledby="viewModalLabel{{ app.id }}" aria-hidden="true">
-                      <div class="modal-dialog modal-dialog-scrollable modal-lg">
-                        <div class="modal-content">
-                          <div class="modal-header bg-primary text-white">
-                            <h5 class="modal-title" id="viewModalLabel{{ app.id }}">Leave Application Details</h5>
-                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                          </div>
-                          <div class="modal-body">
-                            <p><strong>Leave Type:</strong> {{ app.leave_type or 'N/A' }}</p>
-                            <p><strong>Designation:</strong> {{ app.designation or 'N/A' }}</p>
-                            <p><strong>Start Date:</strong> {{ app.start_date.strftime('%b %d, %Y') if app.start_date }}</p>
-                            <p><strong>End Date:</strong> {{ app.end_date.strftime('%b %d, %Y') if app.end_date }}</p>
-                            <p><strong>Leave Days:</strong> {{ app.leave_days }}</p>
-                            <p><strong>Contact Address:</strong> {{ app.contact_address or 'N/A' }}</p>
-                            <p><strong>Emergency Contact:</strong> {{ app.contact_tel or 'N/A' }}</p>
-                            <p><strong>Delegate:</strong> {{ app.delegate or 'N/A' }}</p>
-                            <p><strong>Status:</strong> 
-                              <span class="badge bg-{% if app.status == 'approved' %}success{% elif app.status == 'rejected' %}danger{% else %}warning{% endif %}">
-                                {{ app.status|capitalize }}
-                              </span>
-                            </p>
-                            {% if app.supporting_doc %}
-                              <p>
-                                <strong>Supporting Document:</strong><br>
-                                <a href="{{ url_for('static', filename=app.supporting_doc) }}" target="_blank" class="btn btn-sm btn-outline-info">
-                                  <i class="fas fa-download me-1"></i> Download Attachment
-                                </a>
-                              </p>
-                            {% endif %}
-                          </div>
-                          <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                          </div>
+                        <div class="modal-dialog modal-dialog-scrollable modal-lg">
+                            <div class="modal-content">
+                                <div class="modal-header bg-primary text-white">
+                                    <h5 class="modal-title" id="viewModalLabel{{ app.id }}">Leave Application Details</h5>
+                                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <p><strong>Leave Type:</strong> {{ app.leave_type or 'N/A' }}</p>
+                                    <p><strong>Designation:</strong> {{ app.designation or 'N/A' }}</p>
+                                    <p><strong>Start Date:</strong> {{ app.start_date.strftime('%b %d, %Y') if app.start_date }}</p>
+                                    <p><strong>End Date:</strong> {{ app.end_date.strftime('%b %d, %Y') if app.end_date }}</p>
+                                    <p><strong>Leave Days:</strong> {{ app.leave_days }}</p>
+                                    <p><strong>Contact Address:</strong> {{ app.contact_address or 'N/A' }}</p>
+                                    <p><strong>Emergency Contact:</strong> {{ app.contact_tel or 'N/A' }}</p>
+                                    <p><strong>Delegate:</strong> {{ app.delegate or 'N/A' }}</p>
+                                    <p><strong>Status:</strong> 
+                                        <span class="badge bg-{% if app.status == 'approved' %}success{% elif app.status == 'rejected' %}danger{% else %}warning{% endif %}">
+                                            {{ app.status|capitalize }}
+                                        </span>
+                                    </p>
+                                    {% if app.supporting_doc %}
+                                        <p>
+                                            <strong>Supporting Document:</strong><br>
+                                            <a href="{{ url_for('static', filename=app.supporting_doc) }}" target="_blank" class="btn btn-sm btn-outline-info">
+                                                <i class="fas fa-download me-1"></i> Download Attachment
+                                            </a>
+                                        </p>
+                                    {% endif %}
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                </div>
+                            </div>
                         </div>
-                      </div>
                     </div>
                     {% else %}
                     <tr>
@@ -404,17 +469,18 @@
         </div>
     </div>
 </div>
+
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-  const toasts = document.querySelectorAll('.toast');
-  toasts.forEach(toastEl => {
-    const toast = new bootstrap.Toast(toastEl, {
-      animation: true,
-      autohide: true,
-      delay: 4000
+    const toasts = document.querySelectorAll('.toast');
+    toasts.forEach(toastEl => {
+        const toast = new bootstrap.Toast(toastEl, {
+            animation: true,
+            autohide: true,
+            delay: 4000
+        });
+        toast.show();
     });
-    toast.show();
-  });
 });
 </script>
 {% endblock %}

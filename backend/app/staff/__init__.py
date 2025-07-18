@@ -2,10 +2,12 @@
 from flask import Flask
 from .routes import staff_bp  # Import directly from routes
 from .routes import staff_bp
+from flask import Blueprint
 
 def create_app():
     app = Flask(__name__)
-    
+
+   
     # Configuration
     app.secret_key = 'your-secret-key-here'
     
