@@ -303,7 +303,7 @@
                             <td>
                                 {% if app.start_date and app.end_date %}
                                     {{ app.start_date.strftime('%b %d, %Y') }} to {{ app.end_date.strftime('%b %d, %Y') }}<br>
-                                    <small class="text-muted">{{ (app.end_date - app.start_date).days + 1 }} total days</small>
+                                    <small class="text-muted">{{ (app.end_date - app.start_date).days + 1 }} total calendar days</small>
                                 {% else %}
                                     <span class="text-danger">Invalid leave dates</span>
                                 {% endif %}

@@ -122,11 +122,12 @@
 
     </div>
 
-    <div style="margin-top: 10px;">
-        I hereby apply for <span class="underline">{{ app.leave_days }}</span> days {{ app.leave_type | lower }} leave beginning on 
-        <span class="underline" style="width: 80px;">{{ app.start_date.strftime('%d/%m/%Y') if app.start_date else '' }}</span> to 
-        <span class="underline" style="width: 80px;">{{ app.end_date.strftime('%d/%m/%Y') if app.end_date else '' }}</span>
-    </div>
+   <div style="margin-top: 10px;">
+    I hereby apply for <span class="underline">{{ app.leave_days }}</span> days {{ app.leave_type | lower }} leave beginning on 
+    <span class="underline" style="width: 80px;">{{ app.start_date.strftime('%d/%m/%Y') if app.start_date else '' }}</span> to 
+    <span class="underline" style="width: 80px;">{{ app.end_date.strftime('%d/%m/%Y') if app.end_date else '' }}</span>
+    ({{ (app.end_date - app.start_date).days + 1 }} calendar days)
+</div>
 
     <div style="margin-top: 10px;">
         The last leave taken by me was from <span class="underline" style="width: 80px;">{{ app.last_leave_start.strftime('%d/%m/%Y') if app.last_leave_start else 'N/A' }}</span> to 
@@ -134,14 +135,15 @@
     </div>
 
 <div style="margin-top: 10px;">
-    {% if app.max_days %}
-        Total {{ app.leave_type }} leave balance to date is 
-        <span class="underline" style="width: 40px;">
-            {{ app.remaining_balance }}
-        </span> days (out of {{ app.max_days }})
-    {% else %}
-        Leave balance is not tracked for this leave type.
+  {% if app.max_days %}
+    Total {{ app.leave_type }} leave entitlement:
+    <span class="underline" style="width: 40px;">{{ app.max_days }}</span> days
+    {% if app.used_days is not none %}
+        <br><small>(Used: {{ app.used_days }}, Remaining: {{ app.remaining_days }})</small>
     {% endif %}
+{% else %}
+    Leave balance is not tracked for this leave type.
+{% endif %}
 </div>
 
 

@@ -10,15 +10,16 @@
         </div>
 
         <div class="card-body">
-            <form method="POST" action="{{ url_for('staff.preview_application') }}" id="staffLeaveForm" enctype="multipart/form-data">
-                
-                <!-- Section 1: Leave Details -->
-                <section class="mb-4">
-                    <h5 class="border-bottom pb-2 mb-3 text-primary">Leave Details</h5>
-                    <div class="row g-3">
-                        <div class="col-md-6">
-                            <label class="form-label fw-semibold">Leave Type <span class="text-danger">*</span></label>
-                            <select id="leave_type" name="leave_type" class="form-select border-primary" required>
+            <form method="POST" action="{{ url_for('staff.create_application') }}" id="staffLeaveForm" enctype="multipart/form-data">
+                    <input type="hidden" name="action" id="formAction" value="review">
+
+              <!-- Section 1: Leave Details -->
+<section class="mb-4">
+    <h5 class="border-bottom pb-2 mb-3 text-primary">Leave Details</h5>
+    <div class="row g-3">
+        <div class="col-md-6">
+            <label class="form-label fw-semibold">Leave Type <span class="text-danger">*</span></label>
+            <select id="leave_type" name="leave_type" class="form-select border-primary" required>
                                 <option value="" disabled selected>Select type</option>
                                 <option value="Annual">Annual</option>
                                 <option value="Sick">Sick</option>
@@ -27,27 +28,33 @@
                                 <option value="Compassionate">Compassionate</option>
                                 <option value="Study">Study</option>
                                 <option value="Unpaid">Unpaid</option>
-                            </select>
-                            <div id="entitlementMessage" class="form-text text-primary mt-1"></div>
-                        </div>
+                             </select>
+            <div id="entitlementMessage" class="form-text text-primary mt-1"></div>
+        </div>
 
-                        <div class="col-md-4">
-                            <label class="form-label fw-semibold">Days Requested <span class="text-danger">*</span></label>
-                            <input type="number" name="leave_days" class="form-control border-primary" id="leave_days" min="1" required placeholder="Enter number of leave days">
-                            <div id="leave-warning" class="form-text text-danger d-none"></div>
-                        </div>
+        <div class="col-md-4">
+            <label class="form-label fw-semibold">Days Requested <span class="text-danger">*</span></label>
+            <input type="number" name="leave_days" class="form-control border-primary" id="leave_days" min="1" required>
+        </div>
 
-                        <div class="col-md-4">
-                            <label class="form-label fw-semibold">Start Date <span class="text-danger">*</span></label>
-                            <input type="date" name="start_date" class="form-control border-primary" id="startDate" required>
-                        </div>
+        <div class="col-md-4">
+            <label class="form-label fw-semibold">Start Date <span class="text-danger">*</span></label>
+            <input type="date" name="start_date" class="form-control border-primary" id="startDate" required>
+        </div>
 
-                        <div class="col-md-4">
-                            <label class="form-label fw-semibold">End Date</label>
-                            <input type="date" name="end_date" class="form-control bg-light" id="endDate" readonly>
-                        </div>
-                    </div>
-                </section>
+        <div class="col-md-4">
+            <label class="form-label fw-semibold">End Date</label>
+            <input type="date" name="end_date" class="form-control bg-light" id="endDate" readonly>
+        </div>
+
+        <!-- ADD THIS NEW FIELD HERE -->
+        <div class="col-md-4">
+            <label class="form-label fw-semibold">Actual Working Days</label>
+            <input type="text" class="form-control bg-light" id="calculatedDays" readonly>
+            <small class="text-muted">Calculated based on weekdays</small>
+        </div>
+    </div>
+</section>
 
                 <!-- Section 2: Staff Information -->
                 <section class="mb-4">
@@ -159,9 +166,9 @@
                         <button type="reset" class="btn btn-outline-warning me-2">
                             <i class="bi bi-eraser me-2"></i>Reset
                         </button>
-                        <button type="submit" class="btn btn-primary">
-                            <i class="bi bi-eye me-2"></i> Review Application
-                        </button>
+                       <button type="submit" name="action" value="review" class="btn btn-primary">
+    <i class="bi bi-eye me-2"></i> Review Application
+</button>
                     </div>
                 </div>
             </form>
@@ -170,25 +177,21 @@
 </div>
 
 <!-- Toast Notification -->
-<div class="position-fixed top-0 start-50 translate-middle-x p-3" style="z-index: 1080">
-    <div id="leaveToast" class="toast align-items-center text-bg-danger border-0" role="alert" aria-live="assertive" aria-atomic="true">
-        <div class="d-flex">
-            <div class="toast-body" id="leaveToastMessage"></div>
-            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
-        </div>
-    </div>
-</div>
+
 
 <!-- JavaScript -->
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Leave type and days validation
+    // DOM Elements
     const leaveType = document.getElementById('leave_type');
     const leaveDays = document.getElementById('leave_days');
-    const warning = document.getElementById('leave-warning');
+    const startDateInput = document.getElementById('startDate');
+    const endDateInput = document.getElementById('endDate');
+    const calculatedDaysDisplay = document.getElementById('calculatedDays');
     const entitlementMessage = document.getElementById('entitlementMessage');
-    const form = document.querySelector("form");
+    const form = document.getElementById('staffLeaveForm');
 
+    // Leave entitlements configuration
     const leaveEntitlements = {
         "Annual": 30,
         "Sick": 30,
@@ -199,97 +202,182 @@ document.addEventListener('DOMContentLoaded', function() {
         "Unpaid": null
     };
 
-    // Show/hide previous leave dates
-    const firstTimeRadios = document.querySelectorAll('input[name="first_time"]');
-    const lastLeaveSection = document.getElementById("lastLeaveDates");
-    
-    firstTimeRadios.forEach(radio => {
+    // Toggle previous leave dates section
+    document.querySelectorAll('input[name="first_time"]').forEach(radio => {
         radio.addEventListener("change", () => {
-            lastLeaveSection.style.display = document.getElementById("firstTimeNo").checked 
-                ? "block" 
-                : "none";
+            document.getElementById("lastLeaveDates").style.display = 
+                document.getElementById("firstTimeNo").checked ? "block" : "none";
         });
     });
 
-    // Show/hide salary address field
-    const salaryRadios = document.querySelectorAll('input[name="salary_option"]');
-    const addressGroup = document.getElementById('salary-address-group');
-    
-    salaryRadios.forEach(radio => {
+    // Toggle salary address field
+    document.querySelectorAll('input[name="salary_option"]').forEach(radio => {
         radio.addEventListener('change', () => {
-            addressGroup.style.display = document.querySelector('input[name="salary_option"]:checked').value === 'alternate' 
-                ? 'block' 
-                : 'none';
+            document.getElementById('salary-address-group').style.display = 
+                document.querySelector('input[name="salary_option"]:checked').value === 'alternate' 
+                ? 'block' : 'none';
         });
     });
 
-    // Update end date calculation
-    function addWorkingDays(startDate, days) {
+    // Calculate working days (excludes weekends)
+    function calculateWorkingDays(startDate, endDate) {
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+        let count = 0;
+        
+        // Validate dates
+        if (isNaN(start) || isNaN(end) || start > end) return 0;
+        
+        // Clone date to avoid modifying original
+        const current = new Date(start);
+        
+        // Include both start and end dates
+        while (current <= end) {
+            const day = current.getDay();
+            if (day !== 0 && day !== 6) count++; // Count weekdays only
+            current.setDate(current.getDate() + 1);
+        }
+        return count;
+    }
+
+    // Calculate end date based on working days
+    function calculateEndDate(startDate, workingDays) {
+        if (workingDays <= 0) return null;
+        
         const date = new Date(startDate);
-        let added = 0;
-        while (added < days) {
+        let daysCounted = 0;
+        
+        // Include the start date if it's a weekday
+        if (date.getDay() !== 0 && date.getDay() !== 6) {
+            daysCounted++;
+        }
+        
+        // Add remaining days
+        while (daysCounted < workingDays) {
             date.setDate(date.getDate() + 1);
-            const day = date.getDay();
-            if (day !== 0 && day !== 6) {
-                added++;
+            if (date.getDay() !== 0 && date.getDay() !== 6) {
+                daysCounted++;
             }
         }
+        
         return date;
     }
 
+    // Update end date and display calculated working days
     function updateEndDate() {
-        const startDate = document.getElementById("startDate").value;
-        const leaveDays = parseInt(document.getElementById("leave_days").value);
-        const endDateInput = document.getElementById("endDate");
-
-        if (startDate && leaveDays && leaveDays > 0) {
-            const resultDate = addWorkingDays(startDate, leaveDays - 1);
-            const yyyy = resultDate.getFullYear();
-            const mm = String(resultDate.getMonth() + 1).padStart(2, "0");
-            const dd = String(resultDate.getDate()).padStart(2, "0");
-            endDateInput.value = `${yyyy}-${mm}-${dd}`;
+        const startDate = startDateInput.value;
+        const requestedDays = parseInt(leaveDays.value);
+        
+        if (startDate && requestedDays && requestedDays > 0) {
+            const endDate = calculateEndDate(startDate, requestedDays);
+            
+            if (endDate) {
+                endDateInput.value = endDate.toISOString().split('T')[0];
+                
+                // Calculate and display actual working days
+                const actualDays = calculateWorkingDays(startDate, endDate);
+                if (calculatedDaysDisplay) {
+                    calculatedDaysDisplay.value = actualDays;
+                    
+                    // Show warning if there's a discrepancy
+                    if (actualDays !== requestedDays) {
+                        showToast(`Note: ${requestedDays} requested days = ${actualDays} working days`, 'info');
+                    }
+                }
+            }
         } else {
             endDateInput.value = "";
+            if (calculatedDaysDisplay) calculatedDaysDisplay.value = "";
         }
     }
 
-    // Event listeners
-    document.getElementById("startDate").addEventListener("change", updateEndDate);
-    document.getElementById("leave_days").addEventListener("input", updateEndDate);
+    // Initialize date inputs
+    startDateInput.min = new Date().toISOString().split('T')[0];
+    startDateInput.addEventListener("change", updateEndDate);
+    leaveDays.addEventListener("input", updateEndDate);
 
+    // Handle leave type changes
     leaveType.addEventListener("change", function() {
         const type = this.value;
-        const entitlement = leaveEntitlements[type];
-
-        if (entitlement) {
-            entitlementMessage.textContent = `You are entitled to ${entitlement} days.`;
-            leaveDays.max = entitlement;
+        const maxDays = leaveEntitlements[type];
+        
+        if (maxDays) {
+            entitlementMessage.textContent = `Maximum ${maxDays} days allowed`;
+            leaveDays.max = maxDays;
+            if (parseInt(leaveDays.value) > maxDays) {
+                leaveDays.value = maxDays;
+                updateEndDate();
+            }
         } else {
-            entitlementMessage.textContent = `Please enter the number of days manually.`;
+            entitlementMessage.textContent = `No day limit for this leave type`;
             leaveDays.removeAttribute("max");
         }
     });
 
+    // Form submission handler
     form.addEventListener("submit", function(e) {
         const type = leaveType.value;
-        const entitlement = leaveEntitlements[type];
-        const entered = parseInt(leaveDays.value);
-
-        if (entitlement && entered > entitlement) {
+        const maxDays = leaveEntitlements[type];
+        const requestedDays = parseInt(leaveDays.value);
+        const startDate = startDateInput.value;
+        const endDate = endDateInput.value;
+        
+        // Validate required fields
+        if (!startDate || !requestedDays) {
             e.preventDefault();
-            showToast(`You cannot request more than ${entitlement} days for ${type} leave.`);
+            showToast('Please fill in all required fields');
+            return;
+        }
+        
+        // Validate against entitlement limits
+        if (maxDays && requestedDays > maxDays) {
+            e.preventDefault();
+            showToast(`Maximum ${maxDays} days allowed for ${type} leave`);
+            return;
+        }
+        
+        // Validate date calculations
+        const calculatedDays = calculateWorkingDays(startDate, endDate);
+        if (calculatedDays !== requestedDays) {
+            e.preventDefault();
+            showToast(`Error: ${requestedDays} requested days equals ${calculatedDays} working days. Please adjust your dates.`, 'danger');
+            return;
+        }
+        
+        // Set form action for review
+        if (e.submitter && e.submitter.type === 'submit') {
+            document.getElementById('formAction').value = 'review';
         }
     });
 
-    function showToast(message) {
-        const toastMessage = document.getElementById('leaveToastMessage');
-        toastMessage.textContent = message;
-        const toastElement = new bootstrap.Toast(document.getElementById('leaveToast'));
-        toastElement.show();
+    // Toast notification system
+    function showToast(message, type = 'danger') {
+        // Create container if it doesn't exist
+        let container = document.querySelector('.toast-container');
+        if (!container) {
+            container = document.createElement('div');
+            container.className = 'toast-container position-fixed bottom-0 end-0 p-3';
+            document.body.appendChild(container);
+        }
+        
+        const toast = document.createElement('div');
+        toast.className = `toast show align-items-center text-white bg-${type} border-0`;
+        toast.setAttribute('role', 'alert');
+        toast.innerHTML = `
+            <div class="d-flex">
+                <div class="toast-body">${message}</div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+            </div>
+        `;
+        
+        container.appendChild(toast);
+        setTimeout(() => toast.remove(), 5000);
     }
+
+    // Initialize form
+    updateEndDate();
 });
 </script>
-
 <!-- Custom Styles -->
 <style>
     .form-label {

@@ -34,14 +34,18 @@
                     <dt class="col-sm-4">Leave Type</dt>
                     <dd class="col-sm-8">{{ form_data.leave_type }}</dd>
 
+                    <!-- Replace date display lines with safe formatting -->
                     <dt class="col-sm-4">Start Date</dt>
-                    <dd class="col-sm-8">
-                                    {{ form_data.start_date.strftime('%b %d, %Y') if form_data.start_date else 'N/A' }}
-                                </dd>
-
+                    <dd class="col-sm-8">{{ form_data.start_date_formatted }}</dd>
 
                     <dt class="col-sm-4">End Date</dt>
-                    <dd class="col-sm-8">{{ form_data.end_date.strftime('%b %d, %Y') }}</dd>
+                    <dd class="col-sm-8">{{ form_data.end_date_formatted }}</dd>
+
+                    <dt class="col-sm-4">Last Leave Start</dt>
+                    <dd class="col-sm-8">{{ form_data.last_leave_start_formatted }}</dd>
+
+                    <dt class="col-sm-4">Last Leave End</dt>
+                    <dd class="col-sm-8">{{ form_data.last_leave_end_formatted }}</dd>
 
                     <dt class="col-sm-4">Leave Days</dt>
                     <dd class="col-sm-8">{{ form_data.leave_days }}</dd>
@@ -96,4 +100,5 @@
         </div>
     </div>
 </div>
+
 {% endblock %}

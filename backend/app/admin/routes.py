@@ -12,8 +12,10 @@ import pandas as pd
 from flask import make_response
 import pymysql
 from flask import send_from_directory, abort
+from datetime import datetime, timedelta
 
 admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
+
 
 # --- Helpers ---
 
@@ -24,6 +26,7 @@ def admin_required(f):
             flash('Please login as admin', 'danger')
             return redirect(url_for('admin.admin_login'))
         return f(*args, **kwargs)
+
     return decorated_function
 
 
@@ -42,7 +45,8 @@ def get_signature_base64():
     except Exception as e:
         print("❌ Signature load failed:", e)
         return None
-    
+
+
 # --- Login/Logout ---
 @admin_bp.route('/login', methods=['GET', 'POST'])
 def admin_login():
@@ -80,11 +84,13 @@ def admin_login():
 
     return render_template('admin/login.html')
 
+
 @admin_bp.route('/logout')
 def admin_logout():
     session.clear()  # Clear the session first
     session['logout_success'] = True  # Set the flag after clearing
     return redirect(url_for('admin.admin_login'))
+
 
 # --- View Staff Members ---
 
@@ -105,6 +111,7 @@ def view_staff_members():
         conn.close()
 
     return render_template('admin/staff_members.html', staff_list=staff_list)
+
 
 # --- Delete Staff Member ---
 
@@ -134,7 +141,7 @@ def delete_staff_user(staff_id):
 
         # ✅ Step 1: Delete related applications first
         cur.execute("DELETE FROM leave_applications WHERE staff_id = %s", (staff_id,))
-        
+
         # ✅ Step 2: Delete the staff record
         cur.execute("DELETE FROM staff WHERE id = %s", (staff_id,))
         conn.commit()
@@ -200,7 +207,8 @@ def create_application():
                 'leave_type': request.form['leave_type']
             }
 
-            if not all([form_data['name'], form_data['pno'], form_data['designation'], form_data['start_date'], form_data['end_date']]):
+            if not all([form_data['name'], form_data['pno'], form_data['designation'], form_data['start_date'],
+                        form_data['end_date']]):
                 flash('Please fill all required fields', 'danger')
                 return redirect(url_for('admin.create_application'))
 
@@ -236,19 +244,18 @@ def create_application():
     return render_template('admin/create_application.html')
 
 
-
 @admin_bp.route('/dashboard')
 @admin_bp.route('/dashboard/<status_filter>')
 @admin_required
 def admin_dashboard(status_filter=None):
-    # ✅ Only flash if redirected with success flag
+    # Only flash if redirected with success flag
     if session.pop('login_success', None):
         flash('Login successful', 'success')
 
     conn = get_mysql_connection()
-    cur = conn.cursor()
+    cur = conn.cursor(pymysql.cursors.DictCursor)
 
-    # Base query
+    # Base query with improved selection
     base_query = """
     SELECT 
         la.id,
@@ -258,6 +265,7 @@ def admin_dashboard(status_filter=None):
         la.leave_days,
         la.start_date,
         la.end_date,
+        DATEDIFF(la.end_date, la.start_date) + 1 AS calendar_days,
         la.status,
         la.leave_type,
         la.approved_by,
@@ -265,50 +273,135 @@ def admin_dashboard(status_filter=None):
         la.rejected_by,
         la.rejected_at,
         la.created_at,
-        la.supporting_doc
+        la.supporting_doc,
+        s.id AS staff_id,
+        s.leave_balance
     FROM leave_applications la
     LEFT JOIN staff s ON la.staff_id = s.id
     """
 
+    # Get filter parameters
     search = request.args.get('search', '').strip()
-    status_filter = request.args.get('status', '').strip()
+    status_filter = request.args.get('status', '').strip().lower()
+    leave_type_filter = request.args.get('leave_type', '').strip()
+    date_from = request.args.get('date_from', '').strip()
+    date_to = request.args.get('date_to', '').strip()
+
     params = []
     conditions = []
 
+    # Status filter
     if status_filter in ['approved', 'rejected', 'pending']:
         conditions.append("la.status = %s")
         params.append(status_filter)
 
+    # Search filter
     if search:
-        conditions.append("(COALESCE(s.username, la.name) LIKE %s OR COALESCE(s.pno, la.pno) LIKE %s)")
-        params.extend([f"%{search}%", f"%{search}%"])
+        conditions.append("""
+            (COALESCE(s.username, la.name) LIKE %s 
+            OR COALESCE(s.pno, la.pno) LIKE %s
+            OR la.leave_type LIKE %s
+            OR la.designation LIKE %s)
+        """)
+        params.extend([f"%{search}%"] * 4)
 
+    # Leave type filter
+    if leave_type_filter:
+        conditions.append("la.leave_type = %s")
+        params.append(leave_type_filter)
+
+    # Date range filter
+    if date_from:
+        try:
+            datetime.strptime(date_from, '%Y-%m-%d')
+            conditions.append("la.start_date >= %s")
+            params.append(date_from)
+        except ValueError:
+            flash('Invalid start date format', 'warning')
+
+    if date_to:
+        try:
+            datetime.strptime(date_to, '%Y-%m-%d')
+            conditions.append("la.end_date <= %s")
+            params.append(date_to)
+        except ValueError:
+            flash('Invalid end date format', 'warning')
+
+    # Build final query
     if conditions:
         query = base_query + " WHERE " + " AND ".join(conditions) + " ORDER BY la.created_at DESC"
     else:
         query = base_query + " ORDER BY la.created_at DESC"
 
+    # Execute applications query
     cur.execute(query, tuple(params))
     applications = cur.fetchall()
 
-    cur.execute("SELECT * FROM staff ORDER BY id DESC")
+    # Enhance application data with calculated values
+    for app in applications:
+        # Calculate working days if not properly stored (backward compatibility)
+        if not app['leave_days'] and app['start_date'] and app['end_date']:
+            delta = app['end_date'] - app['start_date']
+            total_days = delta.days + 1
+            working_days = 0
+            for n in range(total_days):
+                current_day = app['start_date'] + timedelta(days=n)
+                if current_day.weekday() < 5:  # 0-4 = Monday-Friday
+                    working_days += 1
+            app['leave_days'] = working_days
+
+        # Format dates for display
+        for date_field in ['start_date', 'end_date', 'approved_at', 'rejected_at', 'created_at']:
+            if app.get(date_field):
+                app[f'{date_field}_formatted'] = app[date_field].strftime('%b %d, %Y %I:%M %p')
+
+    # Get staff list with leave balances
+    cur.execute("""
+        SELECT id, username, pno, designation, leave_balance, 
+               email, date_created 
+        FROM staff 
+        ORDER BY username ASC
+    """)
     staff_list = cur.fetchall()
 
-    for staff in staff_list:
-        if staff.get('date_created') and isinstance(staff['date_created'], str):
-            try:
-                staff['date_created'] = datetime.strptime(staff['date_created'], '%Y-%m-%d %H:%M:%S')
-            except ValueError:
-                staff['date_created'] = None
+    # Get status counts for summary cards
+    cur.execute("""
+        SELECT 
+            COUNT(*) as total,
+            SUM(CASE WHEN status = 'approved' THEN 1 ELSE 0 END) as approved,
+            SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending,
+            SUM(CASE WHEN status = 'rejected' THEN 1 ELSE 0 END) as rejected
+        FROM leave_applications
+    """)
+    status_counts = cur.fetchone()
+
+    # Get leave type distribution
+    cur.execute("""
+        SELECT leave_type, COUNT(*) as count 
+        FROM leave_applications 
+        GROUP BY leave_type 
+        ORDER BY count DESC
+    """)
+    leave_types = cur.fetchall()
 
     cur.close()
+    conn.close()
 
     return render_template(
         'admin/dashboard.html',
         applications=applications,
         staff_list=staff_list,
-        current_filter=status_filter
+        status_counts=status_counts,
+        leave_types=leave_types,
+        current_filters={
+            'status': status_filter,
+            'search': search,
+            'leave_type': leave_type_filter,
+            'date_from': date_from,
+            'date_to': date_to
+        }
     )
+
 
 @admin_bp.route('/application/edit/<int:id>', methods=['GET', 'POST'])
 @admin_required
@@ -350,7 +443,6 @@ def edit_application(id):
 
         conn.commit()
         conn.rollback()
-
 
         cur.close()
 
@@ -402,7 +494,6 @@ def delete_application(id):
         conn.commit()
         conn.rollback()
 
-
         cur.close()
         flash('Application deleted successfully', 'success')
     except Exception as e:
@@ -413,6 +504,7 @@ def delete_application(id):
         flash('Failed to delete application', 'danger')
         # Log the error: current_app.logger.error(f"Delete error: {str(e)}")
     return redirect(url_for('admin.admin_dashboard'))
+
 
 @admin_bp.route('/approve/<int:app_id>', methods=['GET', 'POST'])
 @admin_required
@@ -495,6 +587,7 @@ def approve_application(app_id):
 
     return render_template('admin/approve_form.html', app=app)
 
+
 @admin_bp.route('/application/reject/<int:id>', methods=['GET', 'POST'])
 @admin_required
 def reject_application(id):
@@ -564,6 +657,7 @@ Please contact HR if you have any questions.
     # GET request - show rejection form
     return render_template('admin/reject_application.html', application_id=id)
 
+
 @admin_bp.route('/application/print/<int:id>')
 @admin_required
 def print_application(id):
@@ -607,12 +701,12 @@ def print_application(id):
 
         # Define leave type limits
         leave_type_limits = {
-        "Annual": 30,
-        "Sick": 30,
-        "Maternity": 90,
-        "Paternity": 14,
-        "Compassionate": 7
-    }
+            "Annual": 30,
+            "Sick": 30,
+            "Maternity": 90,
+            "Paternity": 14,
+            "Compassionate": 7
+        }
 
         leave_type = application.get('leave_type')
         max_days = leave_type_limits.get(leave_type)
@@ -625,7 +719,6 @@ def print_application(id):
         else:
             application['max_days'] = max_days
             application['remaining_balance'] = max_days - leave_days if max_days else None
-      
 
         # ✅ Load logo and signature
         logo_base64 = current_app.get_logo_base64()
@@ -658,6 +751,7 @@ def print_application(id):
         current_app.logger.error(f"PDF generation failed: {str(e)}", exc_info=True)
         flash("Failed to generate PDF. Check logs for details.", "danger")
         return redirect(url_for('admin.admin_dashboard'))
+
 
 @admin_bp.route('/staff/delete/<int:staff_id>', methods=['POST'])
 @admin_required
@@ -704,6 +798,7 @@ def admin_home_redirect():
         return redirect(url_for('admin.admin_dashboard'))
     return redirect(url_for('main.home'))
 
+
 @admin_bp.route('/audit-log')
 @admin_required
 def view_audit_log():
@@ -714,10 +809,10 @@ def view_audit_log():
     cur.close()
     return render_template('admin/audit_log.html', logs=logs)
 
+
 @admin_bp.route('/export/excel')
 @admin_required
 def export_leave_excel():
-  
     conn = get_mysql_connection()
     cur = conn.cursor(pymysql.cursors.DictCursor)
 
@@ -749,6 +844,7 @@ def export_leave_excel():
     response.headers["Content-type"] = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     return response
 
+
 @admin_bp.route('/download/<path:filename>')
 @admin_required
 def download_uploaded_document(filename):
@@ -758,19 +854,19 @@ def download_uploaded_document(filename):
         # Security check - prevent directory traversal
         if '..' in filename or filename.startswith('/'):
             abort(404)
-            
+
         # Extract just the filename part (remove 'uploads/' if present)
         clean_filename = filename.split('/')[-1] if '/' in filename else filename
-        
+
         uploads_folder = os.path.join(current_app.static_folder, 'uploads')
         file_path = os.path.join(uploads_folder, clean_filename)
-        
+
         if not os.path.exists(file_path):
             current_app.logger.error(f"File not found: {file_path}")
             abort(404)
-            
+
         return send_from_directory(uploads_folder, clean_filename, as_attachment=True)
-        
+
     except Exception as e:
         current_app.logger.error(f"Download error: {str(e)}")
         abort(404)

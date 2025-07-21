@@ -1,4 +1,5 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, session, make_response, abort, send_from_directory
+from flask import Blueprint, render_template, request, redirect, url_for, flash, session, make_response, abort, \
+    send_from_directory
 from werkzeug.security import check_password_hash, generate_password_hash
 from functools import wraps
 from datetime import datetime, timedelta
@@ -13,9 +14,10 @@ from backend.app.utils.email import send_email, send_reset_email
 from backend.app.utils.auth import update_password
 from backend.app.utils.audit import log_action
 from flask_mail import Message  # Added this import
-from weasyprint import HTML 
+from datetime import datetime, date
+from weasyprint import HTML
 from flask import (
-    Blueprint, render_template, request, redirect, url_for, 
+    Blueprint, render_template, request, redirect, url_for,
     flash, session, make_response, abort, send_from_directory,
     current_app  # Added this import
 )
@@ -26,6 +28,7 @@ staff_bp = Blueprint('staff', __name__, template_folder='templates')
 # Constants
 ALLOWED_EXTENSIONS = {'pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png'}
 
+
 # Helper Functions
 def get_serializer():
     return URLSafeTimedSerializer(
@@ -33,11 +36,14 @@ def get_serializer():
         salt='password-reset-salt'
     )
 
+
 def get_reset_serializer():
     return URLSafeTimedSerializer(current_app.config['SECRET_KEY'], salt='password-reset')
 
+
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
 
 def get_signature_base64():
     try:
@@ -51,6 +57,7 @@ def get_signature_base64():
         current_app.logger.error(f"Signature load failed: {e}")
         return None
 
+
 # Decorators
 def staff_required(f):
     @wraps(f)
@@ -59,7 +66,9 @@ def staff_required(f):
             flash('Please log in as staff to access this page.', 'danger')
             return redirect(url_for('staff.staff_login'))
         return f(*args, **kwargs)
+
     return decorated_function
+
 
 # Authentication Routes
 @staff_bp.route('/login', methods=['GET', 'POST'])
@@ -102,11 +111,13 @@ def staff_login():
 
     return render_template('staff/login.html')
 
+
 @staff_bp.route('/logout')
 def staff_logout():
     session['logout_success'] = True
     session.clear()
     return redirect(url_for('staff.staff_login'))
+
 
 @staff_bp.route('/register', methods=['GET', 'POST'])
 def register():
@@ -163,7 +174,6 @@ def register():
     return render_template('staff/register.html')
 
 
-
 @staff_bp.route('/forgot-password', methods=['GET', 'POST'])
 def forgot_password():
     if request.method == 'POST':
@@ -217,6 +227,7 @@ def forgot_password():
                 cur.close()
 
     return render_template('staff/forgot_password.html')
+
 
 @staff_bp.route('/reset-password/<token>', methods=['GET', 'POST'])
 def reset_password(token):
@@ -279,6 +290,7 @@ def reset_password(token):
         if 'cur' in locals():
             cur.close()
 
+
 # Dashboard Routes
 @staff_bp.route('/dashboard')
 @staff_required
@@ -287,7 +299,7 @@ def staff_dashboard():
     if not staff_id:
         flash('Session expired. Please login again.', 'danger')
         return redirect(url_for('staff.staff_login'))
-    
+
     if session.pop('login_success', None):
         flash('Login successful', 'success')
 
@@ -297,18 +309,58 @@ def staff_dashboard():
         conn = get_mysql_connection()
         cur = conn.cursor(pymysql.cursors.DictCursor)
 
-        cur.execute("SELECT username, pno, leave_balance FROM staff WHERE id = %s", (staff_id,))
+        # Get staff info
+        cur.execute("SELECT username, pno FROM staff WHERE id = %s", (staff_id,))
         staff = cur.fetchone()
-        
         if not staff:
             flash('Staff record not found', 'danger')
             return redirect(url_for('staff.staff_login'))
-            
-        current_balance = staff['leave_balance']
 
+        # Define entitlements
+        entitlements = {
+            'Annual': 30,
+            'Sick': 30,
+            'Maternity': 90,
+            'Paternity': 14,
+            'Compassionate': 7,
+            'Study': None,
+            'Unpaid': None
+        }
+
+        # Get approved leaves
+        cur.execute("""
+            SELECT leave_type, leave_days 
+            FROM leave_applications 
+            WHERE staff_id = %s AND status = 'approved'
+        """, (staff_id,))
+        approved_leaves = cur.fetchall()
+
+        # Calculate used days
+        used_days = {}
+        for row in approved_leaves:
+            ltype = row['leave_type']
+            days = row['leave_days'] or 0
+            used_days[ltype] = used_days.get(ltype, 0) + days
+
+        # Compute remaining
+        remaining_days = {}
+        for ltype, max_days in entitlements.items():
+            if max_days is not None:
+                remaining = max_days - used_days.get(ltype, 0)
+                remaining_days[ltype] = max(remaining, 0)
+            else:
+                remaining_days[ltype] = 'Unlimited'
+
+        # Define working day calculator
+        from datetime import timedelta
+        def calculate_working_days(start_date, end_date):
+            total_days = (end_date - start_date).days + 1
+            return sum(1 for d in range(total_days) if (start_date + timedelta(days=d)).weekday() < 5)
+
+        # Fetch all applications
         cur.execute("""
             SELECT 
-                id, start_date, end_date, status,
+                id, start_date, end_date, status, leave_days,
                 submitted_at, approved_at, approved_by,
                 rejected_at, rejected_by, supporting_doc,
                 leave_type, designation, contact_address,
@@ -323,18 +375,16 @@ def staff_dashboard():
         status_counts = {'approved': 0, 'pending': 0, 'rejected': 0}
 
         for app in leave_apps:
-            leave_days = 0
+            working_days = 0
             if app['start_date'] and app['end_date']:
-                try:
-                    leave_days = (app['end_date'] - app['start_date']).days + 1
-                except Exception:
-                    current_app.logger.warning(f"Invalid date range for application {app['id']}")
+                working_days = calculate_working_days(app['start_date'], app['end_date'])
 
-            application_data = {
+            applications.append({
                 'id': app['id'],
                 'name': staff['username'],
                 'pno': staff['pno'],
-                'leave_days': leave_days,
+                'leave_type': app['leave_type'],
+                'leave_days': working_days,  # ✅ Show real leave days now
                 'start_date': app['start_date'],
                 'end_date': app['end_date'],
                 'status': app['status'],
@@ -344,11 +394,9 @@ def staff_dashboard():
                 'rejected_at': app.get('rejected_at'),
                 'rejected_by': app.get('rejected_by'),
                 'supporting_doc': app.get('supporting_doc'),
-                'leave_type': app.get('leave_type'),
                 'designation': app.get('designation')
-            }
-            applications.append(application_data)
-            
+            })
+
             if app['status'] in status_counts:
                 status_counts[app['status']] += 1
 
@@ -359,22 +407,18 @@ def staff_dashboard():
             approved=status_counts['approved'],
             pending=status_counts['pending'],
             rejected=status_counts['rejected'],
-            leave_balance=current_balance
+            leave_balance=remaining_days.get('Annual', 0),
+            remaining_leave_days=remaining_days
         )
 
-    except pymysql.Error as e:
-        current_app.logger.error(f"Database error in staff_dashboard: {e}")
-        flash("A database error occurred. Please try again.", "danger")
-        return redirect(url_for('staff.staff_login'))
     except Exception as e:
-        current_app.logger.error(f"Unexpected error in staff_dashboard: {e}", exc_info=True)
-        flash("An unexpected error occurred. Please try again.", "danger")
+        current_app.logger.error(f"Error in staff_dashboard: {e}", exc_info=True)
+        flash("Unexpected error occurred", "danger")
         return redirect(url_for('staff.staff_login'))
     finally:
-        if cur:
-            cur.close()
-        if conn:
-            conn.close()
+        if cur: cur.close()
+        if conn: conn.close()
+
 
 # Profile and Settings Routes
 @staff_bp.route('/profile')
@@ -389,19 +433,19 @@ def staff_profile():
 
         conn = get_mysql_connection()
         cur = conn.cursor(pymysql.cursors.DictCursor)
-        
+
         current_app.logger.debug(f"Fetching profile for staff_id: {staff_id}")  # Debug log
-        
+
         cur.execute("""
             SELECT id, username, email, pno, designation, 
                    leave_balance
             FROM staff 
             WHERE id = %s
         """, (staff_id,))
-        
+
         staff = cur.fetchone()
         current_app.logger.debug(f"Retrieved staff data: {staff}")  # Debug log
-        
+
         cur.close()
         conn.close()
 
@@ -415,12 +459,13 @@ def staff_profile():
         current_app.logger.error(f"Profile load error: {str(e)}", exc_info=True)
         flash('Failed to load profile data. Please try again later.', 'danger')
         return redirect(url_for('staff.staff_dashboard'))
-    
+
     except Exception as e:
         current_app.logger.error(f"Profile load error: {str(e)}")
         flash('Failed to load profile data. Please try again later.', 'danger')
         return redirect(url_for('staff.staff_dashboard'))
-    
+
+
 @staff_bp.route('/change-password', methods=['GET', 'POST'])
 @staff_required
 def change_password():
@@ -458,11 +503,12 @@ def change_password():
 
     return render_template('staff/change_password.html')
 
+
 @staff_bp.route('/notification-settings', methods=['GET', 'POST'])
 @staff_required
 def notification_settings():
     staff_id = session.get('staff_id')
-    
+
     if request.method == 'POST':
         email_notifications = request.form.get('email_notifications') == 'on'
         sms_notifications = request.form.get('sms_notifications') == 'on'
@@ -500,7 +546,7 @@ def notification_settings():
             WHERE id = %s
         """, (staff_id,))
         settings = cur.fetchone()
-        
+
         if not settings:
             settings = {
                 'email_notifications': True,
@@ -522,6 +568,7 @@ def notification_settings():
 
     return render_template('staff/notification_settings.html', settings=settings)
 
+
 # Leave Application Routes
 @staff_bp.route('/application/new', methods=['GET', 'POST'])
 @staff_required
@@ -537,15 +584,29 @@ def create_application():
             except ValueError:
                 return None
 
-    def determine_leave_days(leave_type):
-        if not request.form.get('leave_days'):
-            match leave_type:
-                case "Annual": return 30
-                case "Sick": return 30
-                case "Maternity": return 90
-                case "Paternity": return 14
-                case "Compassionate": return 7
-        return int(request.form.get('leave_days', 0))
+    def calculate_working_days(start_date, end_date):
+        if not start_date or not end_date:
+            return 0
+        
+        delta = end_date - start_date
+        total_days = delta.days + 1  # Include both start and end dates
+        
+        # Count weekdays
+        working_days = 0
+        for i in range(total_days):
+            current_date = start_date + timedelta(days=i)
+            if current_date.weekday() < 5:  # 0-4 = Monday-Friday
+                working_days += 1
+    
+        return working_days
+    # Leave entitlements
+    leave_type_limits = {
+        "Annual": 30,
+        "Paternity": 14,
+        "Compassionate": 7,
+        "Maternity": 90
+        # Study and Unpaid are flexible
+    }
 
     if request.method == 'POST':
         action = request.form.get('action')
@@ -554,8 +615,46 @@ def create_application():
         last_leave_start = parse_date(request.form.get('last_leave_start', ''))
         last_leave_end = parse_date(request.form.get('last_leave_end', ''))
         leave_type = request.form.get('leave_type', '').strip()
-        leave_days = determine_leave_days(leave_type)
+        leave_days = calculate_working_days(start_date, end_date)
 
+        # Step 1: Fetch staff details
+        conn = get_mysql_connection()
+        cur = conn.cursor(pymysql.cursors.DictCursor)
+        cur.execute("SELECT leave_balance, email FROM staff WHERE id = %s", (session['staff_id'],))
+        staff_row = cur.fetchone()
+
+        if not staff_row:
+            flash("Unable to fetch your staff details.", "danger")
+            return redirect(url_for('staff.create_application'))
+
+        current_balance = staff_row['leave_balance']
+        staff_email = staff_row['email']
+
+                # Step 2: Check entitlement usage for fixed types
+        if leave_type in leave_type_limits:
+            entitlement_limit = leave_type_limits[leave_type]
+
+            # Sum of all previously approved leave_days for this type
+            cur.execute("""
+                SELECT SUM(leave_days) AS used_days
+                FROM leave_applications
+                WHERE staff_id = %s AND leave_type = %s AND status = 'approved'
+            """, (session['staff_id'], leave_type))
+            used_row = cur.fetchone()
+            used_days = used_row['used_days'] or 0
+
+            remaining = entitlement_limit - used_days
+
+            if leave_days > remaining:
+                flash(f"You have only {remaining} {leave_type.lower()} leave days remaining. You requested {leave_days}.", "danger")
+                return redirect(url_for('staff.create_application'))
+
+            if remaining <= 0:
+                flash(f"You have exhausted your {leave_type.lower()} leave entitlement.", "danger")
+                return redirect(url_for('staff.create_application'))
+
+
+        # Step 3: Form data preparation
         form_data = {
             'name': session['staff_name'],
             'pno': session['staff_pno'],
@@ -563,13 +662,13 @@ def create_application():
             'leave_days': leave_days,
             'start_date': start_date,
             'end_date': end_date,
-            'contact_address': request.form['contact_address'],
-            'contact_tel': request.form['contact_tel'],
+            'contact_address': request.form.get('contact_address', '').strip(),
+            'contact_tel': request.form.get('contact_tel', '').strip(),
             'leave_type': leave_type,
             'delegate': request.form.get('delegate', '').strip(),
             'staff_id': session['staff_id'],
             'salary_continue': request.form.get('salary_option', 'continue') == 'continue',
-            'salary_address': request.form.get('salary_address', '').strip() if not request.form.get('salary_option', 'continue') == 'continue' else None,
+            'salary_address': request.form.get('salary_address', '').strip() if request.form.get('salary_option') != 'continue' else None,
             'last_leave_start': last_leave_start,
             'last_leave_end': last_leave_end,
         }
@@ -584,6 +683,7 @@ def create_application():
             flash('Alternate payment address is required.', 'danger')
             return redirect(url_for('staff.create_application'))
 
+        # Step 4: Handle file upload
         uploaded_file = request.files.get('supporting_doc')
         supporting_doc_path = None
         original_filename = None
@@ -595,7 +695,6 @@ def create_application():
 
             uploads_folder = os.path.join(current_app.static_folder, 'uploads')
             os.makedirs(uploads_folder, exist_ok=True)
-
             unique_filename = f"{uuid.uuid4().hex}_{secure_filename(uploaded_file.filename)}"
             saved_path = os.path.join(uploads_folder, unique_filename)
             uploaded_file.save(saved_path)
@@ -611,28 +710,7 @@ def create_application():
 
         elif action == 'submit':
             try:
-                conn = get_mysql_connection()
                 cur = conn.cursor(pymysql.cursors.DictCursor)
-
-                cur.execute("SELECT leave_balance, email FROM staff WHERE id = %s", (form_data['staff_id'],))
-                staff_row = cur.fetchone()
-
-                if not staff_row:
-                    flash("Unable to fetch staff details.", "danger")
-                    return redirect(url_for('staff.create_application'))
-
-                leave_balance = staff_row['leave_balance']
-                staff_email = staff_row['email']
-
-                supporting_doc_path = request.form.get('saved_doc_path') or supporting_doc_path
-                original_filename = request.form.get('original_filename') or original_filename
-
-                if supporting_doc_path:
-                    absolute_path = os.path.join(current_app.static_folder, supporting_doc_path)
-                    if not os.path.exists(absolute_path):
-                        flash("Uploaded file not found. Please re-attach and try again.", "danger")
-                        return redirect(url_for('staff.create_application'))
-
                 cur.execute("""
                     INSERT INTO leave_applications 
                     (name, pno, designation, leave_days, start_date, end_date, contact_address, contact_tel,
@@ -645,11 +723,10 @@ def create_application():
                     form_data['contact_address'], form_data['contact_tel'], form_data['leave_type'],
                     form_data['delegate'], form_data['staff_id'], form_data['salary_continue'],
                     form_data['salary_address'], form_data['last_leave_start'],
-                    form_data['last_leave_end'], leave_balance, supporting_doc_path
+                    form_data['last_leave_end'], current_balance, supporting_doc_path
                 ))
 
                 conn.commit()
-
                 log_action(f"{form_data['name']} submitted a leave application", staff_id=form_data['staff_id'])
 
                 send_email(
@@ -660,7 +737,7 @@ def create_application():
 
                 send_email(
                     subject="New Leave Application Submitted",
-                    recipients=["admin@example.com"],
+                    recipients=["clivebillzerean@gmail.com"],
                     body=f"{form_data['name']} ({form_data['pno']}) has submitted a new leave application."
                 )
 
@@ -668,30 +745,39 @@ def create_application():
                 return redirect(url_for('staff.staff_dashboard'))
 
             except Exception as e:
-                if 'conn' in locals():
-                    conn.rollback()
+                conn.rollback()
                 flash(f'Error: {str(e)}', 'danger')
                 return redirect(url_for('staff.create_application'))
             finally:
-                if 'cur' in locals():
-                    cur.close()
+                cur.close()
+                conn.close()
 
     return render_template('staff/create_application.html')
+
 
 @staff_bp.route('/application/review', methods=['GET', 'POST'])
 @staff_required
 def preview_application():
-    def parse_date_safe(date_str):
+    def ensure_date_object(date_value):
+        """Convert string dates to date objects, leave existing date objects unchanged"""
+        if date_value is None:
+            return None
+        if isinstance(date_value, date):
+            return date_value
         try:
-            return datetime.strptime(date_str, '%Y-%m-%d').date() if date_str else None
-        except Exception:
+            return datetime.strptime(date_value, '%Y-%m-%d').date()
+        except (ValueError, TypeError):
             try:
-                return datetime.strptime(date_str, '%a, %d %b %Y %H:%M:%S GMT').date() if date_str else None
-            except Exception:
-                return None
+                return datetime.strptime(date_value, '%a, %d %b %Y %H:%M:%S GMT').date()
+            except (ValueError, TypeError):
+                try:
+                    return datetime.strptime(date_value, '%b %d, %Y').date()
+                except (ValueError, TypeError):
+                    return None
 
     if request.method == 'POST':
         try:
+            # Collect all form data
             form_data = {
                 'name': session.get('staff_name', ''),
                 'pno': session.get('staff_pno', ''),
@@ -711,6 +797,7 @@ def preview_application():
                 'salary_option': request.form.get('salary_option', 'continue')
             }
 
+            # Handle file upload
             uploaded_file = request.files.get('supporting_doc')
             file_path = None
             original_filename = None
@@ -737,16 +824,23 @@ def preview_application():
             current_app.logger.error(f"Preview POST error: {str(e)}", exc_info=True)
             flash("An error occurred while processing your preview.", "danger")
             return redirect(url_for('staff.create_application'))
-    else:
+
+    else:  # GET request
         try:
-            form_data = session.get('preview_form_data')
+            form_data = session.get('preview_form_data', {})
             if not form_data:
                 flash('Session expired. Please refill the form.', 'danger')
                 return redirect(url_for('staff.create_application'))
 
-            for field in ['start_date', 'end_date', 'last_leave_start', 'last_leave_end']:
-                form_data[field] = parse_date_safe(form_data.get(field))
+            # Process all date fields
+            date_fields = ['start_date', 'end_date', 'last_leave_start', 'last_leave_end']
+            for field in date_fields:
+                raw_value = form_data.get(field)
+                date_obj = ensure_date_object(raw_value)
+                current_app.logger.debug(f"[Preview] {field}: Raw='{raw_value}', Parsed='{date_obj}'")
+                form_data[f'{field}_formatted'] = date_obj.strftime('%b %d, %Y') if date_obj else 'N/A'
 
+            # Handle file data
             file_path = session.get('preview_file_path')
             original_filename = session.get('preview_original_filename')
 
@@ -768,6 +862,7 @@ def preview_application():
             current_app.logger.error(f"Preview GET error: {str(e)}", exc_info=True)
             flash("An error occurred while loading the preview.", "danger")
             return redirect(url_for('staff.create_application'))
+
 
 @staff_bp.route('/application/view/<int:app_id>')
 @staff_required
@@ -795,6 +890,7 @@ def view_application(app_id):
         if 'conn' in locals():
             conn.close()
 
+
 @staff_bp.route('/application/print/<int:app_id>')
 @staff_required
 def print_application(app_id):
@@ -802,10 +898,12 @@ def print_application(app_id):
         conn = get_mysql_connection()
         cur = conn.cursor(pymysql.cursors.DictCursor)
 
+        # Fetch the application and related staff info
         cur.execute("""
             SELECT 
                 la.*,
                 s.leave_balance,
+                s.designation AS staff_designation,
                 CASE
                     WHEN la.designation LIKE '%%HOD%%' OR s.designation LIKE '%%Head%%'
                     THEN 1 ELSE 0
@@ -815,7 +913,6 @@ def print_application(app_id):
             WHERE la.id = %s AND la.staff_id = %s
         """, (app_id, session['staff_id']))
         application = cur.fetchone()
-        cur.close()
 
         if not application:
             flash("Application not found or unauthorized.", "danger")
@@ -825,54 +922,78 @@ def print_application(app_id):
             flash("You can only print approved leave applications.", "warning")
             return redirect(url_for('staff.staff_dashboard'))
 
+        # Convert date strings to date objects if necessary
         for field in ['start_date', 'end_date', 'last_leave_start', 'last_leave_end']:
             if application.get(field) and isinstance(application[field], str):
                 try:
                     application[field] = datetime.strptime(application[field], '%Y-%m-%d').date()
-                except ValueError:
-                    current_app.logger.warning(f"Invalid date format in field: {field}")
+                except:
                     application[field] = None
 
-        leave_type_limits = {
-            "Annual": 30,
-            "Sick": None,
-            "Maternity": 90,
-            "Paternity": 14,
-            "Compassionate": 7
-        }
-
         leave_type = application.get('leave_type')
-        max_days = leave_type_limits.get(leave_type)
         leave_days = application.get('leave_days', 0)
 
-        if leave_type == 'Annual':
-            application['max_days'] = max_days
-            application['remaining_balance'] = application.get('leave_balance', 0)
-        elif leave_type in ['Maternity', 'Paternity', 'Compassionate']:
-            application['max_days'] = max_days
-            application['remaining_balance'] = max_days - leave_days if max_days else None
-        else:
-            application['max_days'] = None
-            application['remaining_balance'] = None
+        # Leave entitlement definitions
+        entitlement_map = {
+            "Annual": {"max_days": 30, "deducts": True, "track_usage": True},
+            "Maternity": {"max_days": 90, "deducts": False, "track_usage": True},
+            "Paternity": {"max_days": 14, "deducts": False, "track_usage": True},
+            "Compassionate": {"max_days": 7, "deducts": False, "track_usage": True},
+            "Sick": {"max_days": 30, "deducts": False, "track_usage": True},
+            "Study": {"max_days": None, "deducts": False, "track_usage": False},
+            "Unpaid": {"max_days": None, "deducts": False, "track_usage": False}
+        }
 
+        leave_info = entitlement_map.get(leave_type, {"max_days": None, "deducts": False, "track_usage": False})
+
+        # Calculate usage for all tracked leave types
+        if leave_info['track_usage']:
+            cur.execute("""
+                SELECT SUM(leave_days) AS used_days
+                FROM leave_applications
+                WHERE staff_id = %s AND leave_type = %s AND status = 'approved'
+            """, (session['staff_id'], leave_type))
+            used = cur.fetchone()
+            used_days = used['used_days'] or 0
+
+            entitlement = leave_info['max_days']
+            remaining = entitlement - used_days if entitlement else None
+
+            application['max_days'] = entitlement
+            application['used_days'] = used_days
+            application['remaining_days'] = remaining
+            
+            if leave_info['deducts']:
+                # For annual leave, show both annual balance and entitlement usage
+                application['balance_description'] = (
+                    f"Annual leave balance: {application['leave_balance']} days (out of {entitlement})\n"
+                    f"Used this year: {used_days} days, Remaining entitlement: {remaining} days"
+                )
+            else:
+                # For other tracked leave types
+                application['balance_description'] = (
+                    f"{leave_type} leave entitlement: {entitlement} days\n"
+                    f"Used: {used_days} days, Remaining: {remaining} days"
+                )
+        else:
+            # For untracked leave types
+            application['max_days'] = None
+            application['used_days'] = None
+            application['remaining_days'] = None
+            application['balance_description'] = "No entitlement tracking for this leave type"
+
+        # PDF rendering
         logo_base64 = current_app.get_logo_base64()
         signature_base64 = current_app.get_signature_base64()
+        template = 'staff/pdf_template_hod.html' if application['is_hod'] else 'staff/pdf_template_staff.html'
 
-        if not logo_base64:
-            current_app.logger.warning("Logo not found or couldn't be loaded")
-        if not signature_base64:
-            current_app.logger.warning("Signature not found or couldn't be loaded")
-
-        template_name = 'staff/pdf_template_hod.html' if application['is_hod'] else 'staff/pdf_template_staff.html'
-
-        rendered_html = render_template(
-            template_name,
+        rendered = render_template(
+            template,
             app=application,
             logo_base64=logo_base64,
             signature_base64=signature_base64
         )
-
-        pdf = HTML(string=rendered_html, base_url=request.url_root).write_pdf()
+        pdf = HTML(string=rendered, base_url=request.url_root).write_pdf()
 
         response = make_response(pdf)
         response.headers['Content-Type'] = 'application/pdf'
@@ -880,9 +1001,14 @@ def print_application(app_id):
         return response
 
     except Exception as e:
-        current_app.logger.error(f"PDF generation failed: {str(e)}", exc_info=True)
-        flash("Failed to generate PDF. Please try again later.", "danger")
+        current_app.logger.error(f"PDF generation error: {e}", exc_info=True)
+        flash("Failed to generate PDF. Try again later.", "danger")
         return redirect(url_for('staff.staff_dashboard'))
+
+    finally:
+        if cur: cur.close()
+        if conn: conn.close()
+
 
 @staff_bp.route('/application/cancel/<int:id>')
 @staff_required
@@ -932,6 +1058,7 @@ def cancel_application(id):
 
     return redirect(url_for('staff.staff_dashboard'))
 
+
 @staff_bp.route('/download/<filename>')
 @staff_required
 def download_file(filename):
@@ -950,13 +1077,4 @@ def download_file(filename):
         current_app.logger.error(f"Download error: {str(e)}")
         abort(404)
 
-@staff_bp.route('/test')
-def test_page():
-    return """
-    <html>
-    <body>
-        <h1>Test Page</h1>
-        <img src="/static/images/default-profile.png" width="100">
-    </body>
-    </html>
-    """
+
