@@ -25,10 +25,10 @@
                 <dd class="col-sm-9">{{ application.leave_type }}</dd>
 
                 <dt class="col-sm-3">Start Date</dt>
-                <dd class="col-sm-9">{{ application.start_date.strftime('%b %d, %Y') }}</dd>
+                <dd class="col-sm-9">{{ application.start_date|format_date }}</dd>
 
                 <dt class="col-sm-3">End Date</dt>
-                <dd class="col-sm-9">{{ application.end_date.strftime('%b %d, %Y') }}</dd>
+                <dd class="col-sm-9">{{ application.end_date|format_date }}</dd>
 
                 <dt class="col-sm-3">Leave Days</dt>
                 <dd class="col-sm-9">{{ application.leave_days }}</dd>
@@ -60,13 +60,13 @@
                 <dd class="col-sm-9">{{ application.approved_by }}</dd>
 
                 <dt class="col-sm-3">Approved At</dt>
-                <dd class="col-sm-9">{{ application.approved_at.strftime('%b %d, %Y %I:%M %p') if application.approved_at }}</dd>
+                <dd class="col-sm-9">{{ application.approved_at|format_datetime if application.approved_at }}</dd>
                 {% elif application.status == 'rejected' %}
                 <dt class="col-sm-3">Rejected By</dt>
                 <dd class="col-sm-9">{{ application.rejected_by }}</dd>
 
                 <dt class="col-sm-3">Rejected At</dt>
-                <dd class="col-sm-9">{{ application.rejected_at.strftime('%b %d, %Y %I:%M %p') if application.rejected_at }}</dd>
+                <dd class="col-sm-9">{{ application.rejected_at|format_datetime if application.rejected_at }}</dd>
                 {% endif %}
             </dl>
             {% else %}

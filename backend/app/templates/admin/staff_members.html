@@ -30,7 +30,7 @@
               <td>{{ staff.designation or 'N/A' }}</td>
               <td>
                 {% if staff.date_created %}
-                  {{ staff.date_created.strftime('%Y-%m-%d %H:%M') }}
+                  {{ staff.date_created|format_datetime('%Y-%m-%d %H:%M') }}
                 {% else %}
                   Not available
                 {% endif %}

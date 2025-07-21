@@ -16,16 +16,14 @@ mail = Mail()
 
 # ✅ Function to get a MySQL connection (works with TiDB)
 def get_mysql_connection():
-    # ✅ Debug: show which host and port we’re trying to use
-    print("Connecting to:", os.getenv("MYSQL_HOST"), os.getenv("MYSQL_PORT"))
-
     return pymysql.connect(
         host=os.getenv("MYSQL_HOST"),
         user=os.getenv("MYSQL_USER"),
         password=os.getenv("MYSQL_PASSWORD"),
         db=os.getenv("MYSQL_DB"),
         port=int(os.getenv("MYSQL_PORT")),
-        ssl={"fake_flag_to_enable_tls": True},  # ✅ Required by Railway
+        ssl={"fake_flag_to_enable_tls": True},
         cursorclass=pymysql.cursors.DictCursor,
+        init_command="SET time_zone='+00:00'",  # Ensure UTC
         autocommit=True
     )

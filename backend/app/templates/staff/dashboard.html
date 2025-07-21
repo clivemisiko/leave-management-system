@@ -405,19 +405,18 @@
                             {% if app.status == 'approved' %}
                             <small class="d-block text-muted mt-1">
                                 Approved by {{ app.approved_by }}<br>
-                                {{ app.approved_at.strftime('%b %d, %Y %I:%M %p') if app.approved_at }}
+                                {{ app.approved_at|format_datetime if app.approved_at }}
                             </small>
                             {% elif app.status == 'rejected' %}
                             <small class="d-block text-muted mt-1">
                                 Rejected by {{ app.rejected_by }}<br>
-                                {{ app.rejected_at.strftime('%b %d, %Y %I:%M %p') if app.rejected_at }}
+                                {{ app.rejected_at|format_datetime if app.rejected_at }}
                             </small>
                             {% endif %}
                         </td>
                         <td>
                             {% if app.submitted_at %}
-                                {{ app.submitted_at.strftime('%b %d, %Y %I:%M %p') }}
-                            {% else %}
+                                {{ app.submitted_at|format_datetime }}                            {% else %}
                                 <span class="text-muted">N/A</span>
                             {% endif %}
                         </td>

@@ -316,12 +316,12 @@
                                 {% if app.status == 'approved' and app.approved_by %}
                                 <small class="d-block text-muted mt-1">
                                     Approved by {{ app.approved_by }}<br>
-                                    {{ app.approved_at.strftime('%b %d, %Y %I:%M %p') if app.approved_at }}
+                                    {{ app.approved_at|format_datetime if app.approved_at }}
                                 </small>
                                {% elif app.status == 'rejected' and app.rejected_by %}
                         <small class="d-block text-muted mt-1">
                             Rejected by {{ app.rejected_by }}<br>
-                            {{ app.rejected_at.strftime('%b %d, %Y %I:%M %p') if app.rejected_at }}<br>
+                            {{ app.rejected_at|format_datetime if app.rejected_at }}<br>
                             {% if app.rejection_reason %}
                             <strong>Reason:</strong> {{ app.rejection_reason }}
                             {% endif %}
