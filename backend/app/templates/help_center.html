@@ -28,6 +28,25 @@
                         <h4 class="text-ict-blue border-bottom pb-2 mb-4">
                             <i class="fas fa-images me-2"></i> Step-by-Step Visual Guides
                         </h4>
+<div class="mb-5">
+    <h5 class="text-ict-blue mb-3">1. Creating an Account</h5>
+    <div class="row g-3">
+        <div class="col-md-6">
+            <div class="card border-0 shadow-sm screenshot-card"
+                 data-bs-toggle="modal"
+                 data-bs-target="#screenshotModal"
+                 data-img="{{ url_for('static', filename='images/screenshots/registration-step1.png') }}"
+                 data-title="Registration Page">
+                <img src="{{ url_for('static', filename='images/screenshots/registration-step1.png') }}"
+                     class="card-img-top"
+                     alt="Registration Page">
+                <div class="card-body text-center bg-light">
+                    <p class="mb-0 fw-bold">Step 1: Fill out the registration form</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 
                         <!-- Guide 1: Apply for Leave -->
                         <div class="mb-5">
@@ -104,6 +123,9 @@
                             </div>
                         </div>
                     </div>
+
+                    <!-- Guide 4: Registration Page -->
+
 
                     <!-- Need Help Section -->
                     <div class="bg-ict-light-blue p-4 rounded">
