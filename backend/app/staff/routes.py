@@ -21,6 +21,8 @@ from flask import (
     flash, session, make_response, abort, send_from_directory,
     current_app  # Added this import
 )
+import uuid
+from flask_mail import Message
 
 # Initialize Blueprint
 staff_bp = Blueprint('staff', __name__, template_folder='templates')
@@ -100,24 +102,27 @@ def staff_login():
             flash('Incorrect password', 'danger')
             return redirect(url_for('staff.staff_login'))
 
+        if not staff['is_verified']:
+            flash('Please verify your email before logging in.', 'warning')
+            return redirect(url_for('staff.staff_login'))
+
+        # ✅ Set session
         session['staff_logged_in'] = True
         session['staff_id'] = staff['id']
         session['staff_pno'] = staff['pno']
         session['staff_name'] = staff['username']
         session['staff_email'] = staff['email']
-        session['staff_designation'] = staff['designation']  # or staff[4] if using tuple
+        session['staff_designation'] = staff['designation']
         session['login_success'] = True
         return redirect(url_for('staff.staff_dashboard'))
 
     return render_template('staff/login.html')
-
 
 @staff_bp.route('/logout')
 def staff_logout():
     session['logout_success'] = True
     session.clear()
     return redirect(url_for('staff.staff_login'))
-
 
 @staff_bp.route('/register', methods=['GET', 'POST'])
 def register():
@@ -127,7 +132,7 @@ def register():
         email = request.form.get('email', '').strip().lower()
         password = request.form.get('password', '')
         confirm_password = request.form.get('confirm_password', '')
-        designation = request.form.get('designation', '').strip()  # ✅ Added
+        designation = request.form.get('designation', '').strip()
 
         if not all([pno, username, email, password, confirm_password, designation]):
             flash('All fields are required including designation.', 'danger')
@@ -154,12 +159,20 @@ def register():
                 return redirect(url_for('staff.register'))
 
             hashed_password = generate_password_hash(password)
-            cur.execute(
-                "INSERT INTO staff (pno, username, email, password, designation) VALUES (%s, %s, %s, %s, %s)",
-                (pno, username, email, hashed_password, designation)
-            )
+            verification_token = str(uuid.uuid4())
+            cur.execute("""
+                INSERT INTO staff (pno, username, email, password, designation, is_verified, verification_token)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+            """, (pno, username, email, hashed_password, designation, 0, verification_token))
             conn.commit()
-            flash('Registration successful! Please login.', 'success')
+
+            # ✅ Send verification email
+            verification_link = url_for('staff.verify_email', token=verification_token, _external=True)
+            msg = Message("Verify Your Account", recipients=[email])
+            msg.body = f"Hi {username},\n\nClick the link below to verify your account:\n{verification_link}"
+            mail.send(msg)
+
+            flash('Registration successful! Please check your email to verify your account.', 'info')
             return redirect(url_for('staff.staff_login'))
 
         except Exception as e:
@@ -168,8 +181,7 @@ def register():
             flash(f"Registration failed: {e}", 'danger')
             return redirect(url_for('staff.register'))
         finally:
-            if cur:
-                cur.close()
+            if cur: cur.close()
 
     return render_template('staff/register.html')
 
@@ -1077,4 +1089,31 @@ def download_file(filename):
         current_app.logger.error(f"Download error: {str(e)}")
         abort(404)
 
+@staff_bp.route('/verify/<token>')
+def verify_email(token):
+    try:
+        conn = get_mysql_connection()
+        cur = conn.cursor(pymysql.cursors.DictCursor)
 
+        cur.execute("SELECT id FROM staff WHERE verification_token = %s AND is_verified = 0", (token,))
+        result = cur.fetchone()
+
+        if result:
+            staff_id = result['id']  # ✅ safer access via key
+            cur.execute("""
+                UPDATE staff SET is_verified = 1, verification_token = NULL WHERE id = %s
+            """, (staff_id,))
+            conn.commit()
+            flash("Account verified successfully! You may now log in.", "success")
+        else:
+            flash("Invalid or expired verification link.", "danger")
+
+    except Exception as e:
+        current_app.logger.error(f"Verification error: {e}", exc_info=True)
+        flash("An error occurred during verification.", "danger")
+
+    finally:
+        if cur: cur.close()
+        if conn: conn.close()
+
+    return redirect(url_for('staff.staff_login'))
