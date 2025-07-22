@@ -47,7 +47,6 @@
             <input type="date" name="end_date" class="form-control bg-light" id="endDate" readonly>
         </div>
 
-        <!-- ADD THIS NEW FIELD HERE -->
         <div class="col-md-4">
             <label class="form-label fw-semibold">Actual Working Days</label>
             <input type="text" class="form-control bg-light" id="calculatedDays" readonly>
@@ -220,76 +219,82 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // Calculate working days (excludes weekends)
-    function calculateWorkingDays(startDate, endDate) {
-        const start = new Date(startDate);
-        const end = new Date(endDate);
-        let count = 0;
-        
-        // Validate dates
-        if (isNaN(start) || isNaN(end) || start > end) return 0;
-        
-        // Clone date to avoid modifying original
-        const current = new Date(start);
-        
-        // Include both start and end dates
-        while (current <= end) {
-            const day = current.getDay();
-            if (day !== 0 && day !== 6) count++; // Count weekdays only
-            current.setDate(current.getDate() + 1);
+   function calculateWorkingDays(startDate, endDate) {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    let count = 0;
+    
+    // Validate dates
+    if (isNaN(start) || isNaN(end) || start > end) return 0;
+    
+    // Clone date to avoid modifying original
+    const current = new Date(start);
+    
+    // Loop through each day
+    while (current <= end) {
+        const day = current.getDay();
+        // Count only weekdays (Monday to Friday)
+        if (day !== 0 && day !== 6) {
+            count++;
         }
-        return count;
+        current.setDate(current.getDate() + 1);
     }
+    return count;
+}
 
     // Calculate end date based on working days
-    function calculateEndDate(startDate, workingDays) {
-        if (workingDays <= 0) return null;
-        
-        const date = new Date(startDate);
-        let daysCounted = 0;
-        
-        // Include the start date if it's a weekday
-        if (date.getDay() !== 0 && date.getDay() !== 6) {
-            daysCounted++;
+// 📅 Calculate end date by skipping weekends
+function calculateEndDate(startDate, workingDays) {
+    if (workingDays <= 0) return null;
+
+    const date = new Date(startDate);
+    let daysAdded = 0;
+
+    while (workingDays > 0) {
+        const day = date.getDay();
+        if (day !== 0 && day !== 6) {
+            // Weekday
+            workingDays--;
         }
-        
-        // Add remaining days
-        while (daysCounted < workingDays) {
+        if (workingDays > 0) {
             date.setDate(date.getDate() + 1);
-            if (date.getDay() !== 0 && date.getDay() !== 6) {
-                daysCounted++;
-            }
         }
-        
-        return date;
+        daysAdded++;
     }
 
-    // Update end date and display calculated working days
-    function updateEndDate() {
-        const startDate = startDateInput.value;
-        const requestedDays = parseInt(leaveDays.value);
-        
-        if (startDate && requestedDays && requestedDays > 0) {
-            const endDate = calculateEndDate(startDate, requestedDays);
-            
-            if (endDate) {
-                endDateInput.value = endDate.toISOString().split('T')[0];
-                
-                // Calculate and display actual working days
-                const actualDays = calculateWorkingDays(startDate, endDate);
-                if (calculatedDaysDisplay) {
-                    calculatedDaysDisplay.value = actualDays;
-                    
-                    // Show warning if there's a discrepancy
-                    if (actualDays !== requestedDays) {
-                        showToast(`Note: ${requestedDays} requested days = ${actualDays} working days`, 'info');
-                    }
+    return date;
+}
+
+// 🔄 Update end date and calculated days
+function updateEndDate() {
+    const startDate = startDateInput.value;
+    const workingDaysRequested = parseInt(leaveDays.value);
+
+    if (startDate && workingDaysRequested && workingDaysRequested > 0) {
+        const endDate = calculateEndDate(startDate, workingDaysRequested);
+
+        if (endDate) {
+            const formattedDate = endDate.toISOString().split('T')[0];
+            endDateInput.value = formattedDate;
+
+            // Show calculated working days
+            const actualWorkingDays = calculateWorkingDays(startDate, formattedDate);
+            if (calculatedDaysDisplay) {
+                calculatedDaysDisplay.value = actualWorkingDays;
+
+                // 🔔 Show info toast if mismatch
+                const extraDays = (endDate - new Date(startDate)) / (1000 * 60 * 60 * 24) + 1;
+                const weekends = extraDays - actualWorkingDays;
+                if (weekends > 0) {
+                    showToast(`Note: ${extraDays} calendar days includes ${weekends} weekend days`, 'info');
                 }
             }
-        } else {
-            endDateInput.value = "";
-            if (calculatedDaysDisplay) calculatedDaysDisplay.value = "";
         }
+    } else {
+        endDateInput.value = "";
+        if (calculatedDaysDisplay) calculatedDaysDisplay.value = "";
     }
+}
 
     // Initialize date inputs
     startDateInput.min = new Date().toISOString().split('T')[0];
@@ -376,7 +381,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Initialize form
     updateEndDate();
+
+leaveDays.addEventListener('input', updateEndDate);
+startDateInput.addEventListener('change', updateEndDate);
+
 });
+
 </script>
 <!-- Custom Styles -->
 <style>

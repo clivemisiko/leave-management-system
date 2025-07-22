@@ -19,31 +19,34 @@
         <div class="col-lg-10 mx-auto">
             <div class="card shadow-sm">
                 <div class="card-header" style="background-color: #0066b3; color: white;">
-    <h3 class="mb-0"><i class="fas fa-file-contract me-2"></i> help_center</h3>
-</div>
+                    <h3 class="mb-0"><i class="fas fa-file-contract me-2"></i> Help Center</h3>
+                </div>
                 <div class="card-body">
+
                     <!-- Screenshot Guides Section -->
                     <div class="mb-4">
                         <h4 class="text-ict-blue border-bottom pb-2 mb-4">
                             <i class="fas fa-images me-2"></i> Step-by-Step Visual Guides
                         </h4>
-                        
-                        <!-- Guide 1 -->
+
+                        <!-- Guide 1: Apply for Leave -->
                         <div class="mb-5">
                             <h5 class="text-ict-blue mb-3">1. How to Apply for Leave</h5>
                             <div class="row g-3">
                                 {% for step in [1, 2] %}
                                 <div class="col-md-6">
                                     <div class="card border-0 shadow-sm screenshot-card"
-                                         data-bs-toggle="modal" 
+                                         data-bs-toggle="modal"
                                          data-bs-target="#screenshotModal"
-                                         data-img="{{ url_for('static', filename='images/screenshots/apply-step' + step|string + '.jpg') }}"
+                                         data-img="{{ url_for('static', filename='images/screenshots/apply-step' ~ step ~ '.png') }}"
                                          data-title="Applying for Leave - Step {{ step }}">
-                                        <img src="{{ url_for('static', filename='images/screenshots/apply-step' + step|string + '.jpg') }}" 
-                                             class="card-img-top" 
+                                        <img src="{{ url_for('static', filename='images/screenshots/apply-step' ~ step ~ '.png') }}"
+                                             class="card-img-top"
                                              alt="Apply Step {{ step }}">
                                         <div class="card-body text-center bg-light">
-                                            <p class="mb-0 fw-bold">Step {{ step }}: {{ ['Login to system', 'Submit application'][step-1] }}</p>
+                                            <p class="mb-0 fw-bold">
+                                                Step {{ step }}: {{ ['Login to system', 'Submit application'][step-1] }}
+                                            </p>
                                         </div>
                                     </div>
                                 </div>
@@ -51,22 +54,24 @@
                             </div>
                         </div>
 
-                        <!-- Guide 2 -->
+                        <!-- Guide 2: Check Leave Balance -->
                         <div class="mb-5">
                             <h5 class="text-ict-blue mb-3">2. Checking Leave Balance</h5>
                             <div class="row g-3">
                                 {% for step in [1, 2] %}
                                 <div class="col-md-6">
                                     <div class="card border-0 shadow-sm screenshot-card"
-                                         data-bs-toggle="modal" 
+                                         data-bs-toggle="modal"
                                          data-bs-target="#screenshotModal"
-                                         data-img="{{ url_for('static', filename='images/screenshots/balance-step' + step|string + '.jpg') }}"
+                                         data-img="{{ url_for('static', filename='images/screenshots/balance-step' ~ step ~ '.png') }}"
                                          data-title="Checking Balance - Step {{ step }}">
-                                        <img src="{{ url_for('static', filename='images/screenshots/balance-step' + step|string + '.jpg') }}" 
-                                             class="card-img-top" 
+                                        <img src="{{ url_for('static', filename='images/screenshots/balance-step' ~ step ~ '.png') }}"
+                                             class="card-img-top"
                                              alt="Balance Step {{ step }}">
                                         <div class="card-body text-center bg-light">
-                                            <p class="mb-0 fw-bold">Step {{ step }}: {{ ['Go to Dashboard', 'View balance'][step-1] }}</p>
+                                            <p class="mb-0 fw-bold">
+                                                Step {{ step }}: {{ ['Go to Dashboard', 'View balance'][step-1] }}
+                                            </p>
                                         </div>
                                     </div>
                                 </div>
@@ -74,22 +79,24 @@
                             </div>
                         </div>
 
-                        <!-- Guide 3 -->
+                        <!-- Guide 3: Track Application Status -->
                         <div class="mb-5">
                             <h5 class="text-ict-blue mb-3">3. Tracking Application Status</h5>
                             <div class="row g-3">
                                 {% for step in [1, 2] %}
                                 <div class="col-md-6">
                                     <div class="card border-0 shadow-sm screenshot-card"
-                                         data-bs-toggle="modal" 
+                                         data-bs-toggle="modal"
                                          data-bs-target="#screenshotModal"
-                                         data-img="{{ url_for('static', filename='images/screenshots/status-step' + step|string + '.jpg') }}"
+                                         data-img="{{ url_for('static', filename='images/screenshots/status-step' ~ step ~ '.png') }}"
                                          data-title="Tracking Status - Step {{ step }}">
-                                        <img src="{{ url_for('static', filename='images/screenshots/status-step' + step|string + '.jpg') }}" 
-                                             class="card-img-top" 
+                                        <img src="{{ url_for('static', filename='images/screenshots/status-step' ~ step ~ '.png') }}"
+                                             class="card-img-top"
                                              alt="Status Step {{ step }}">
                                         <div class="card-body text-center bg-light">
-                                            <p class="mb-0 fw-bold">Step {{ step }}: {{ ['My Applications', 'Check status'][step-1] }}</p>
+                                            <p class="mb-0 fw-bold">
+                                                Step {{ step }}: {{ ['My Applications', 'Check status'][step-1] }}
+                                            </p>
                                         </div>
                                     </div>
                                 </div>
@@ -152,27 +159,15 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Screenshot modal handler
-    var screenshotModal = document.getElementById('screenshotModal');
+    const screenshotModal = document.getElementById('screenshotModal');
     screenshotModal.addEventListener('show.bs.modal', function(event) {
-        var button = event.relatedTarget;
-        var imgSrc = button.getAttribute('data-img');
-        var title = button.getAttribute('data-title');
-        
+        const button = event.relatedTarget;
+        const imgSrc = button.getAttribute('data-img');
+        const title = button.getAttribute('data-title');
+
         document.getElementById('modalScreenshot').src = imgSrc;
         document.getElementById('screenshotModalTitle').textContent = title;
     });
 });
 </script>
 {% endblock %}
-
-<!-- static/
-  images/
-    screenshots/
-      apply-step1.jpg
-      apply-step2.jpg
-      balance-step1.jpg
-      balance-step2.jpg
-      status-step1.jpg
-      status-step2.jpg
-      -->
