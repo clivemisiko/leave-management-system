@@ -398,7 +398,7 @@
     <div class="col-md-6">
         <h6>Actions</h6>
         <div class="btn-group mt-2">
-            <a href="{{ url_for('admin.print_application', id=app.id) }}" class="btn btn-sm btn-micde">
+            <a href="{{ url_for('admin.print_application', app_id=app.id) }}" class="btn btn-sm btn-micde">
                 <i class="fas fa-print"></i> Print
             </a>
             {% if app.status != 'approved' %}

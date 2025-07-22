@@ -658,99 +658,125 @@ Please contact HR if you have any questions.
     return render_template('admin/reject_application.html', application_id=id)
 
 
-@admin_bp.route('/application/print/<int:id>')
+@admin_bp.route('/application/print/<int:app_id>')
 @admin_required
-def print_application(id):
+def print_application(app_id):
     try:
         conn = get_mysql_connection()
         cur = conn.cursor(pymysql.cursors.DictCursor)
 
-        # Fetch application with staff details
+        # Fetch the application and related staff info
         cur.execute("""
-            SELECT la.*,
-                   COALESCE(s.username, la.name) AS name,
-                   COALESCE(s.pno, la.pno) AS pno,
-                   s.leave_balance,
-                   CASE
-                       WHEN la.designation LIKE '%%HOD%%' OR la.designation LIKE '%%Head%%'
-                       THEN 1 ELSE 0
-                   END AS is_hod
+            SELECT 
+                la.*,
+                COALESCE(s.username, la.name) AS name,
+                COALESCE(s.pno, la.pno) AS pno,
+                s.leave_balance,
+                s.designation AS staff_designation,
+                CASE
+                    WHEN la.designation LIKE '%%HOD%%' OR la.designation LIKE '%%Head%%'
+                    THEN 1 ELSE 0
+                END AS is_hod
             FROM leave_applications la
             LEFT JOIN staff s ON la.staff_id = s.id
             WHERE la.id = %s
-        """, (id,))
+        """, (app_id,))
         application = cur.fetchone()
-        cur.close()
 
         if not application:
             flash("Application not found.", "danger")
             return redirect(url_for('admin.admin_dashboard'))
 
         if application['status'] != 'approved':
-            flash("Only approved applications can be printed.", "warning")
+            flash("You can only print approved leave applications.", "warning")
             return redirect(url_for('admin.admin_dashboard'))
 
-        # Convert string dates to date objects if needed
+        # Convert date strings to date objects if necessary
         for field in ['start_date', 'end_date', 'last_leave_start', 'last_leave_end']:
             if application.get(field) and isinstance(application[field], str):
                 try:
                     application[field] = datetime.strptime(application[field], '%Y-%m-%d').date()
-                except ValueError:
-                    current_app.logger.warning(f"Invalid date format in field: {field}")
+                except:
                     application[field] = None
 
-        # Define leave type limits
-        leave_type_limits = {
-            "Annual": 30,
-            "Sick": 30,
-            "Maternity": 90,
-            "Paternity": 14,
-            "Compassionate": 7
+        leave_type = application.get('leave_type')
+        leave_days = application.get('leave_days', 0)
+
+        # Leave entitlement definitions
+        entitlement_map = {
+            "Annual": {"max_days": 30, "deducts": True, "track_usage": True},
+            "Maternity": {"max_days": 90, "deducts": False, "track_usage": True},
+            "Paternity": {"max_days": 14, "deducts": False, "track_usage": True},
+            "Compassionate": {"max_days": 7, "deducts": False, "track_usage": True},
+            "Sick": {"max_days": 30, "deducts": False, "track_usage": True},
+            "Study": {"max_days": None, "deducts": False, "track_usage": False},
+            "Unpaid": {"max_days": None, "deducts": False, "track_usage": False}
         }
 
-        leave_type = application.get('leave_type')
-        max_days = leave_type_limits.get(leave_type)
-        leave_days = int(application.get('leave_days', 0))
+        leave_info = entitlement_map.get(leave_type, {"max_days": None, "deducts": False, "track_usage": False})
 
-        # For fixed-duration leave types (not Annual), calculate remaining balance
-        if leave_type == 'Annual':
-            application['max_days'] = max_days
-            application['remaining_balance'] = application.get('leave_balance')  # from DB
+        # Calculate usage for all tracked leave types
+        if leave_info['track_usage'] and application.get('staff_id'):
+            cur.execute("""
+                SELECT SUM(leave_days) AS used_days
+                FROM leave_applications
+                WHERE staff_id = %s AND leave_type = %s AND status = 'approved'
+            """, (application['staff_id'], leave_type))
+            used = cur.fetchone()
+            used_days = used['used_days'] or 0
+
+            entitlement = leave_info['max_days']
+            remaining = entitlement - used_days if entitlement else None
+
+            application['max_days'] = entitlement
+            application['used_days'] = used_days
+            application['remaining_days'] = remaining
+            
+            if leave_info['deducts']:
+                # For annual leave, show both annual balance and entitlement usage
+                application['balance_description'] = (
+                    f"Annual leave balance: {application['leave_balance']} days (out of {entitlement})\n"
+                    f"Used this year: {used_days} days, Remaining entitlement: {remaining} days"
+                )
+            else:
+                # For other tracked leave types
+                application['balance_description'] = (
+                    f"{leave_type} leave entitlement: {entitlement} days\n"
+                    f"Used: {used_days} days, Remaining: {remaining} days"
+                )
         else:
-            application['max_days'] = max_days
-            application['remaining_balance'] = max_days - leave_days if max_days else None
+            # For untracked leave types or external applicants
+            application['max_days'] = None
+            application['used_days'] = None
+            application['remaining_days'] = None
+            application['balance_description'] = "No entitlement tracking for this leave type"
 
-        # ✅ Load logo and signature
+        # PDF rendering
         logo_base64 = current_app.get_logo_base64()
         signature_base64 = current_app.get_signature_base64()
+        template = 'admin/pdf_template_hod.html' if application['is_hod'] else 'admin/pdf_template_staff.html'
 
-        if not logo_base64:
-            current_app.logger.warning("⚠️ Logo not found or couldn't be loaded")
-        if not signature_base64:
-            current_app.logger.warning("⚠️ Signature not found or couldn't be loaded")
-
-        # ✅ Choose template
-        template_name = 'admin/pdf_template_hod.html' if application['is_hod'] else 'admin/pdf_template_staff.html'
-
-        # ✅ Render and return PDF
-        rendered_html = render_template(
-            template_name,
+        rendered = render_template(
+            template,
             app=application,
             logo_base64=logo_base64,
             signature_base64=signature_base64
         )
-
-        pdf = HTML(string=rendered_html, base_url=request.url_root).write_pdf()
+        pdf = HTML(string=rendered, base_url=request.url_root).write_pdf()
 
         response = make_response(pdf)
         response.headers['Content-Type'] = 'application/pdf'
-        response.headers['Content-Disposition'] = f'inline; filename=leave_application_{id}.pdf'
+        response.headers['Content-Disposition'] = f'inline; filename=leave_application_{app_id}.pdf'
         return response
 
     except Exception as e:
-        current_app.logger.error(f"PDF generation failed: {str(e)}", exc_info=True)
-        flash("Failed to generate PDF. Check logs for details.", "danger")
+        current_app.logger.error(f"PDF generation error: {e}", exc_info=True)
+        flash("Failed to generate PDF. Try again later.", "danger")
         return redirect(url_for('admin.admin_dashboard'))
+
+    finally:
+        if cur: cur.close()
+        if conn: conn.close()
 
 
 @admin_bp.route('/staff/delete/<int:staff_id>', methods=['POST'])
