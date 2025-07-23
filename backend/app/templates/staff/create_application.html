@@ -11,49 +11,57 @@
 
         <div class="card-body">
             <form method="POST" action="{{ url_for('staff.create_application') }}" id="staffLeaveForm" enctype="multipart/form-data">
-                    <input type="hidden" name="action" id="formAction" value="review">
+                <!-- Hidden fields for leave balances -->
+                <input type="hidden" id="annual_balance" value="{{ leave_balances.get('Annual', 0) }}">
+                <input type="hidden" id="sick_balance" value="{{ leave_balances.get('Sick', 0) }}">
+                <input type="hidden" id="maternity_balance" value="{{ leave_balances.get('Maternity', 0) }}">
+                <input type="hidden" id="paternity_balance" value="{{ leave_balances.get('Paternity', 0) }}">
+                <input type="hidden" id="compassionate_balance" value="{{ leave_balances.get('Compassionate', 0) }}">
+                <input type="hidden" name="action" id="formAction" value="review">
 
-              <!-- Section 1: Leave Details -->
-<section class="mb-4">
-    <h5 class="border-bottom pb-2 mb-3 text-primary">Leave Details</h5>
-    <div class="row g-3">
-        <div class="col-md-6">
-            <label class="form-label fw-semibold">Leave Type <span class="text-danger">*</span></label>
-            <select id="leave_type" name="leave_type" class="form-select border-primary" required>
-                                <option value="" disabled selected>Select type</option>
-                                <option value="Annual">Annual</option>
-                                <option value="Sick">Sick</option>
-                                <option value="Maternity">Maternity</option>
-                                <option value="Paternity">Paternity</option>
-                                <option value="Compassionate">Compassionate</option>
-                                <option value="Study">Study</option>
-                                <option value="Unpaid">Unpaid</option>
-                             </select>
-            <div id="entitlementMessage" class="form-text text-primary mt-1"></div>
-        </div>
+                <!-- Section 1: Leave Details -->
+                <section class="mb-4">
+                    <h5 class="border-bottom pb-2 mb-3 text-primary">Leave Details</h5>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Leave Type <span class="text-danger">*</span></label>
+                            <select name="leave_type" id="leave_type" class="form-select" required>
+                            <option value="" disabled selected>-- Select Leave Type --</option>
+                            <option value="Annual">Annual</option>
+                            <option value="Sick">Sick</option>
+                            <option value="Maternity">Maternity</option>
+                            <option value="Paternity">Paternity</option>
+                            <option value="Compassionate">Compassionate</option>
+                            <option value="Study">Study</option>
+                            <option value="Unpaid">Unpaid</option>
+                        </select>
 
-        <div class="col-md-4">
-            <label class="form-label fw-semibold">Days Requested <span class="text-danger">*</span></label>
-            <input type="number" name="leave_days" class="form-control border-primary" id="leave_days" min="1" required>
-        </div>
+                            <div id="entitlementMessage" class="form-text text-primary mt-1"></div>
+                            <div id="balanceMessage" class="form-text text-info mt-1"></div>
+                        </div>
 
-        <div class="col-md-4">
-            <label class="form-label fw-semibold">Start Date <span class="text-danger">*</span></label>
-            <input type="date" name="start_date" class="form-control border-primary" id="startDate" required>
-        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">Days Requested <span class="text-danger">*</span></label>
+                            <input type="number" name="leave_days" class="form-control border-primary" id="leave_days" min="1" required>
+                        </div>
 
-        <div class="col-md-4">
-            <label class="form-label fw-semibold">End Date</label>
-            <input type="date" name="end_date" class="form-control bg-light" id="endDate" readonly>
-        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">Start Date <span class="text-danger">*</span></label>
+                            <input type="date" name="start_date" class="form-control border-primary" id="startDate" required>
+                        </div>
 
-        <div class="col-md-4">
-            <label class="form-label fw-semibold">Actual Working Days</label>
-            <input type="text" class="form-control bg-light" id="calculatedDays" readonly>
-            <small class="text-muted">Calculated based on weekdays</small>
-        </div>
-    </div>
-</section>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">End Date</label>
+                            <input type="date" name="end_date" class="form-control bg-light" id="endDate" readonly>
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">Actual Working Days</label>
+                            <input type="text" class="form-control bg-light" id="calculatedDays" readonly>
+                            <small class="text-muted">Calculated based on weekdays!</small>
+                        </div>
+                    </div>
+                </section>
 
                 <!-- Section 2: Staff Information -->
                 <section class="mb-4">
@@ -72,9 +80,9 @@
                         </div>
 
                         <div class="col-md-4">
-                            <label for="designation" class="form-label">Designation</label>
-                            <input type="text" id="designation" name="designation" class="form-control" 
-                                value="{{ session.staff_designation }}" readonly>
+                            <label for="designation" class="form-label">Designation <span class="text-danger">*</span></label>
+                            <input type="text" id="designation" name="designation" class="form-control border-primary" 
+                                value="{{ session.staff_designation }}" required>
                         </div>
                     </div>
                 </section>
@@ -133,7 +141,7 @@
                         <label class="btn btn-outline-primary" for="salaryAlternate">Alternate Payment</label>
                     </div>
                     <div id="salary-address-group" class="mt-3" style="display: none;">
-                        <label for="salary_address" class="form-label fw-semibold">Alternate Payment Address</label>
+                        <label for="salary_address" class="form-label fw-semibold">Alternate Payment Address <span class="text-danger">*</span></label>
                         <input type="text" name="salary_address" id="salary_address" class="form-control border-primary">
                         <small class="text-muted">Provide address if not through bank</small>
                     </div>
@@ -150,10 +158,12 @@
                 <!-- Section 7: Supporting Documents -->
                 <section class="mb-4">
                     <h5 class="border-bottom pb-2 mb-3 text-primary">Supporting Documents</h5>
-                    <label class="form-label fw-semibold">Supporting Document (optional)</label>
+                    <label class="form-label fw-semibold">Supporting Document (if required)</label>
                     <input type="file" name="supporting_doc" class="form-control border-primary"
                         accept=".pdf,.jpg,.jpeg,.png,.doc,.docx">
-                    <small class="text-muted">Attach medical letter, study proof, or other support docs</small>
+                    <small class="text-muted">
+                        <span id="docRequirement" class="text-muted">Attach medical letter, study proof, or other support docs</span>
+                    </small>
                 </section>
 
                 <!-- Form Buttons -->
@@ -165,18 +175,15 @@
                         <button type="reset" class="btn btn-outline-warning me-2">
                             <i class="bi bi-eraser me-2"></i>Reset
                         </button>
-                       <button type="submit" name="action" value="review" class="btn btn-primary">
-    <i class="bi bi-eye me-2"></i> Review Application
-</button>
+                        <button type="submit" name="action" value="review" class="btn btn-primary">
+                            <i class="bi bi-eye me-2"></i> Review Application
+                        </button>
                     </div>
                 </div>
             </form>
         </div>
     </div>
 </div>
-
-<!-- Toast Notification -->
-
 
 <!-- JavaScript -->
 <script>
@@ -188,17 +195,30 @@ document.addEventListener('DOMContentLoaded', function() {
     const endDateInput = document.getElementById('endDate');
     const calculatedDaysDisplay = document.getElementById('calculatedDays');
     const entitlementMessage = document.getElementById('entitlementMessage');
+    const balanceMessage = document.getElementById('balanceMessage');
+    const docRequirement = document.getElementById('docRequirement');
     const form = document.getElementById('staffLeaveForm');
 
     // Leave entitlements configuration
     const leaveEntitlements = {
-        "Annual": 30,
-        "Sick": 30,
-        "Maternity": 90,
-        "Paternity": 14,
-        "Compassionate": 7,
-        "Study": null,
-        "Unpaid": null
+        "Annual": { maxDays: 30, deducts: true, docRequired: false },
+        "Sick": { maxDays: 30, deducts: false, docRequired: true },
+        "Maternity": { maxDays: 90, deducts: false, docRequired: true },
+        "Paternity": { maxDays: 14, deducts: false, docRequired: false },
+        "Compassionate": { maxDays: 7, deducts: false, docRequired: false },
+        "Study": { maxDays: null, deducts: false, docRequired: true },
+        "Unpaid": { maxDays: null, deducts: false, docRequired: false }
+    };
+
+    // Document requirements
+    const docRequirements = {
+        "Sick": "Medical certificate required",
+        "Maternity": "Medical certificate required",
+        "Study": "Proof of study required",
+        "Compassionate": "Death certificate may be required",
+        "Annual": "No document required",
+        "Paternity": "No document required",
+        "Unpaid": "No document required"
     };
 
     // Toggle previous leave dates section
@@ -212,120 +232,190 @@ document.addEventListener('DOMContentLoaded', function() {
     // Toggle salary address field
     document.querySelectorAll('input[name="salary_option"]').forEach(radio => {
         radio.addEventListener('change', () => {
-            document.getElementById('salary-address-group').style.display = 
+            const salaryAddressGroup = document.getElementById('salary-address-group');
+            salaryAddressGroup.style.display = 
                 document.querySelector('input[name="salary_option"]:checked').value === 'alternate' 
                 ? 'block' : 'none';
+            
+            // Make address field required if alternate payment is selected
+            document.getElementById('salary_address').required = 
+                document.querySelector('input[name="salary_option"]:checked').value === 'alternate';
         });
     });
 
     // Calculate working days (excludes weekends)
-   function calculateWorkingDays(startDate, endDate) {
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    let count = 0;
-    
-    // Validate dates
-    if (isNaN(start) || isNaN(end) || start > end) return 0;
-    
-    // Clone date to avoid modifying original
-    const current = new Date(start);
-    
-    // Loop through each day
-    while (current <= end) {
-        const day = current.getDay();
-        // Count only weekdays (Monday to Friday)
-        if (day !== 0 && day !== 6) {
-            count++;
+    function calculateWorkingDays(startDate, endDate) {
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+        let count = 0;
+        
+        // Validate dates
+        if (isNaN(start) || isNaN(end) || start > end) return 0;
+        
+        // Clone date to avoid modifying original
+        const current = new Date(start);
+        
+        // Loop through each day
+        while (current <= end) {
+            const day = current.getDay();
+            // Count only weekdays (Monday to Friday)
+            if (day !== 0 && day !== 6) {
+                count++;
+            }
+            current.setDate(current.getDate() + 1);
         }
-        current.setDate(current.getDate() + 1);
+        return count;
     }
-    return count;
-}
 
     // Calculate end date based on working days
-// 📅 Calculate end date by skipping weekends
-function calculateEndDate(startDate, workingDays) {
-    if (workingDays <= 0) return null;
+    function calculateEndDate(startDate, workingDays) {
+        if (workingDays <= 0) return null;
 
-    const date = new Date(startDate);
-    let daysAdded = 0;
+        const date = new Date(startDate);
+        let daysAdded = 0;
 
-    while (workingDays > 0) {
-        const day = date.getDay();
-        if (day !== 0 && day !== 6) {
-            // Weekday
-            workingDays--;
+        while (workingDays > 0) {
+            const day = date.getDay();
+            if (day !== 0 && day !== 6) {
+                // Weekday
+                workingDays--;
+            }
+            if (workingDays > 0) {
+                date.setDate(date.getDate() + 1);
+            }
+            daysAdded++;
         }
-        if (workingDays > 0) {
-            date.setDate(date.getDate() + 1);
-        }
-        daysAdded++;
+
+        return date;
     }
 
-    return date;
-}
+    // Update end date and calculated days
+    function updateEndDate() {
+        const startDate = startDateInput.value;
+        const workingDaysRequested = parseInt(leaveDays.value);
 
-// 🔄 Update end date and calculated days
-function updateEndDate() {
-    const startDate = startDateInput.value;
-    const workingDaysRequested = parseInt(leaveDays.value);
+        if (startDate && workingDaysRequested && workingDaysRequested > 0) {
+            const endDate = calculateEndDate(startDate, workingDaysRequested);
 
-    if (startDate && workingDaysRequested && workingDaysRequested > 0) {
-        const endDate = calculateEndDate(startDate, workingDaysRequested);
+            if (endDate) {
+                const formattedDate = endDate.toISOString().split('T')[0];
+                endDateInput.value = formattedDate;
 
-        if (endDate) {
-            const formattedDate = endDate.toISOString().split('T')[0];
-            endDateInput.value = formattedDate;
+                // Show calculated working days
+                const actualWorkingDays = calculateWorkingDays(startDate, formattedDate);
+                if (calculatedDaysDisplay) {
+                    calculatedDaysDisplay.value = actualWorkingDays;
 
-            // Show calculated working days
-            const actualWorkingDays = calculateWorkingDays(startDate, formattedDate);
-            if (calculatedDaysDisplay) {
-                calculatedDaysDisplay.value = actualWorkingDays;
-
-                // 🔔 Show info toast if mismatch
-                const extraDays = (endDate - new Date(startDate)) / (1000 * 60 * 60 * 24) + 1;
-                const weekends = extraDays - actualWorkingDays;
-                if (weekends > 0) {
-                    showToast(`Note: ${extraDays} calendar days includes ${weekends} weekend days`, 'info');
+                    // Show info toast if mismatch
+                    const extraDays = (endDate - new Date(startDate)) / (1000 * 60 * 60 * 24) + 1;
+                    const weekends = extraDays - actualWorkingDays;
+                    if (weekends > 0) {
+                        showToast(`Note: ${extraDays} calendar days includes ${weekends} weekend days`, 'info');
+                    }
                 }
             }
+        } else {
+            endDateInput.value = "";
+            if (calculatedDaysDisplay) calculatedDaysDisplay.value = "";
         }
-    } else {
-        endDateInput.value = "";
-        if (calculatedDaysDisplay) calculatedDaysDisplay.value = "";
     }
-}
-
-    // Initialize date inputs
-    startDateInput.min = new Date().toISOString().split('T')[0];
-    startDateInput.addEventListener("change", updateEndDate);
-    leaveDays.addEventListener("input", updateEndDate);
 
     // Handle leave type changes
     leaveType.addEventListener("change", function() {
-        const type = this.value;
-        const maxDays = leaveEntitlements[type];
+    const type = this.value;
+    const config = leaveEntitlements[type];
+
+    if (!config) {
+        console.warn("Unrecognized leave type:", type);
+        entitlementMessage.textContent = "";
+        docRequirement.textContent = "";
+        balanceMessage.textContent = "";
+        return;
+    }
+
+    const maxDays = config.maxDays;
         
+        // Get balance for this leave type
+        let balance;
+        switch(type) {
+            case 'Annual':
+                balance = parseInt(document.getElementById('annual_balance').value) || 0;
+                break;
+            case 'Sick':
+                balance = parseInt(document.getElementById('sick_balance').value) || 0;
+                break;
+            case 'Maternity':
+                balance = parseInt(document.getElementById('maternity_balance').value) || 0;
+                break;
+            case 'Paternity':
+                balance = parseInt(document.getElementById('paternity_balance').value) || 0;
+                break;
+            case 'Compassionate':
+                balance = parseInt(document.getElementById('compassionate_balance').value) || 0;
+                break;
+            default:
+                balance = null;
+        }
+
+        // Update entitlement message
         if (maxDays) {
-            entitlementMessage.textContent = `Maximum ${maxDays} days allowed`;
+            if (type === 'Annual' || type === 'Sick') {
+                entitlementMessage.textContent = `Maximum ${maxDays} days allowed`;
+            } else {
+                entitlementMessage.textContent = `Maximum ${maxDays} days allowed`;
+            }
             leaveDays.max = maxDays;
-            if (parseInt(leaveDays.value) > maxDays) {
-                leaveDays.value = maxDays;
-                updateEndDate();
+            
+            // Show warning if exceeding balance
+            if (balance !== null && parseInt(leaveDays.value) > balance) {
+                showToast(`Warning: You only have ${balance} days remaining for ${type} leave`, 'warning');
             }
         } else {
             entitlementMessage.textContent = `No day limit for this leave type`;
             leaveDays.removeAttribute("max");
+        }
+
+        // Update document requirement
+        docRequirement.textContent = docRequirements[type];
+        
+        // Update balance message
+        if (balance !== null) {
+            balanceMessage.textContent = `Remaining ${type} leave: ${balance} days`;
+        } else {
+            balanceMessage.textContent = '';
         }
     });
 
     // Form submission handler
     form.addEventListener("submit", function(e) {
         const type = leaveType.value;
-        const maxDays = leaveEntitlements[type];
+        const config = leaveEntitlements[type];
+        const maxDays = config.maxDays;
         const requestedDays = parseInt(leaveDays.value);
         const startDate = startDateInput.value;
         const endDate = endDateInput.value;
+        
+        // Get the appropriate balance
+        let balance;
+        switch(type) {
+            case 'Annual':
+                balance = parseInt(document.getElementById('annual_balance').value) || 0;
+                break;
+            case 'Sick':
+                balance = parseInt(document.getElementById('sick_balance').value) || 0;
+                break;
+            case 'Maternity':
+                balance = parseInt(document.getElementById('maternity_balance').value) || 0;
+                break;
+            case 'Paternity':
+                balance = parseInt(document.getElementById('paternity_balance').value) || 0;
+                break;
+            case 'Compassionate':
+                balance = parseInt(document.getElementById('compassionate_balance').value) || 0;
+                break;
+            default:
+                balance = null;
+        }
         
         // Validate required fields
         if (!startDate || !requestedDays) {
@@ -341,11 +431,25 @@ function updateEndDate() {
             return;
         }
         
+        // Validate against available balance (for leave types with balances)
+        if (balance !== null && requestedDays > balance) {
+            e.preventDefault();
+            showToast(`Warning: You only have ${balance} days remaining for ${type} leave`, 'warning');
+            return;
+        }
+        
         // Validate date calculations
         const calculatedDays = calculateWorkingDays(startDate, endDate);
         if (calculatedDays !== requestedDays) {
             e.preventDefault();
             showToast(`Error: ${requestedDays} requested days equals ${calculatedDays} working days. Please adjust your dates.`, 'danger');
+            return;
+        }
+        
+        // Validate document requirements
+        if (config.docRequired && !document.querySelector('input[name="supporting_doc"]').files.length) {
+            e.preventDefault();
+            showToast(`${type} leave requires supporting documentation. Please attach required documents.`, 'warning');
             return;
         }
         
@@ -357,37 +461,52 @@ function updateEndDate() {
 
     // Toast notification system
     function showToast(message, type = 'danger') {
-        // Create container if it doesn't exist
-        let container = document.querySelector('.toast-container');
-        if (!container) {
-            container = document.createElement('div');
-            container.className = 'toast-container position-fixed bottom-0 end-0 p-3';
-            document.body.appendChild(container);
-        }
-        
-        const toast = document.createElement('div');
-        toast.className = `toast show align-items-center text-white bg-${type} border-0`;
-        toast.setAttribute('role', 'alert');
-        toast.innerHTML = `
-            <div class="d-flex">
-                <div class="toast-body">${message}</div>
-                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
-            </div>
-        `;
-        
-        container.appendChild(toast);
-        setTimeout(() => toast.remove(), 5000);
+    let container = document.querySelector('.toast-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.className = 'toast-container position-fixed bottom-0 end-0 p-3';
+        container.style.zIndex = '1100';
+        document.body.appendChild(container);
     }
 
+    const toastId = `toast-${Date.now()}`;
+
+    const toast = document.createElement('div');
+    toast.className = `toast align-items-center text-white bg-${type} border-0 mb-2`;
+    toast.id = toastId;
+    toast.setAttribute('role', 'alert');
+    toast.setAttribute('aria-live', 'assertive');
+    toast.setAttribute('aria-atomic', 'true');
+
+    toast.innerHTML = `
+        <div class="d-flex">
+            <div class="toast-body">${message}</div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+        </div>
+    `;
+
+    container.appendChild(toast);
+
+    // Show toast using Bootstrap API
+    const bsToast = bootstrap.Toast.getOrCreateInstance(toast);
+    bsToast.show();
+
+    // Auto-hide and remove
+    setTimeout(() => {
+        bsToast.hide();
+        toast.addEventListener('hidden.bs.toast', () => toast.remove());
+    }, 5000);
+}
+
+
     // Initialize form
-    updateEndDate();
-
-leaveDays.addEventListener('input', updateEndDate);
-startDateInput.addEventListener('change', updateEndDate);
-
+    startDateInput.min = new Date().toISOString().split('T')[0];
+    startDateInput.addEventListener("change", updateEndDate);
+    leaveDays.addEventListener("input", updateEndDate);
+    leaveType.dispatchEvent(new Event('change')); // Trigger initial setup
 });
-
 </script>
+
 <!-- Custom Styles -->
 <style>
     .form-label {
@@ -411,6 +530,9 @@ startDateInput.addEventListener('change', updateEndDate);
     }
     section {
         margin-bottom: 2rem;
+    }
+    .toast-container {
+        z-index: 1100;
     }
 </style>
 {% endblock %}

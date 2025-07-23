@@ -611,13 +611,16 @@ def create_application():
                 working_days += 1
     
         return working_days
-    # Leave entitlements
-    leave_type_limits = {
-        "Annual": 30,
-        "Paternity": 14,
-        "Compassionate": 7,
-        "Maternity": 90
-        # Study and Unpaid are flexible
+
+    # Leave entitlements configuration
+    leave_entitlements = {
+        "Annual": {"max_days": 30, "deducts": True},
+        "Sick": {"max_days": 30, "deducts": False},
+        "Maternity": {"max_days": 90, "deducts": False},
+        "Paternity": {"max_days": 14, "deducts": False},
+        "Compassionate": {"max_days": 7, "deducts": False},
+        "Study": {"max_days": None, "deducts": False},
+        "Unpaid": {"max_days": None, "deducts": False}
     }
 
     if request.method == 'POST':
@@ -629,44 +632,59 @@ def create_application():
         leave_type = request.form.get('leave_type', '').strip()
         leave_days = calculate_working_days(start_date, end_date)
 
-        # Step 1: Fetch staff details
+        # Step 1: Fetch staff details and leave balances
         conn = get_mysql_connection()
         cur = conn.cursor(pymysql.cursors.DictCursor)
-        cur.execute("SELECT leave_balance, email FROM staff WHERE id = %s", (session['staff_id'],))
+        
+        # Get staff info
+        cur.execute("SELECT id, email, leave_balance FROM staff WHERE id = %s", (session['staff_id'],))
         staff_row = cur.fetchone()
 
         if not staff_row:
             flash("Unable to fetch your staff details.", "danger")
             return redirect(url_for('staff.create_application'))
 
-        current_balance = staff_row['leave_balance']
         staff_email = staff_row['email']
+        current_annual_balance = staff_row['leave_balance']
 
-                # Step 2: Check entitlement usage for fixed types
-        if leave_type in leave_type_limits:
-            entitlement_limit = leave_type_limits[leave_type]
+        # Get all used leave days by type
+        cur.execute("""
+            SELECT leave_type, SUM(leave_days) AS used_days
+            FROM leave_applications
+            WHERE staff_id = %s AND status = 'approved'
+            GROUP BY leave_type
+        """, (session['staff_id'],))
+        used_days = {row['leave_type']: row['used_days'] for row in cur.fetchall()}
 
-            # Sum of all previously approved leave_days for this type
-            cur.execute("""
-                SELECT SUM(leave_days) AS used_days
-                FROM leave_applications
-                WHERE staff_id = %s AND leave_type = %s AND status = 'approved'
-            """, (session['staff_id'], leave_type))
-            used_row = cur.fetchone()
-            used_days = used_row['used_days'] or 0
+        # Calculate remaining days for each leave type
+        remaining_days = {}
+        for ltype, config in leave_entitlements.items():
+            if config['max_days'] is not None:
+                remaining = config['max_days'] - used_days.get(ltype, 0)
+                remaining_days[ltype] = max(remaining, 0)
+            else:
+                remaining_days[ltype] = 'Unlimited'
 
-            remaining = entitlement_limit - used_days
+        # Validate leave type and days
+        if leave_type not in leave_entitlements:
+            flash("Invalid leave type selected.", "danger")
+            return redirect(url_for('staff.create_application'))
 
-            if leave_days > remaining:
-                flash(f"You have only {remaining} {leave_type.lower()} leave days remaining. You requested {leave_days}.", "danger")
-                return redirect(url_for('staff.create_application'))
+        leave_config = leave_entitlements[leave_type]
+        max_days = leave_config['max_days']
+        remaining = remaining_days.get(leave_type, 0)
 
-            if remaining <= 0:
-                flash(f"You have exhausted your {leave_type.lower()} leave entitlement.", "danger")
-                return redirect(url_for('staff.create_application'))
+        # Check against max entitlement
+        if max_days and leave_days > max_days:
+            flash(f"Maximum {max_days} days allowed for {leave_type} leave", "danger")
+            return redirect(url_for('staff.create_application'))
 
+        # Check against remaining balance
+        if remaining != 'Unlimited' and leave_days > remaining:
+            flash(f"You only have {remaining} days remaining for {leave_type} leave", "danger")
+            return redirect(url_for('staff.create_application'))
 
-        # Step 3: Form data preparation
+        # Step 2: Form data preparation
         form_data = {
             'name': session['staff_name'],
             'pno': session['staff_pno'],
@@ -683,11 +701,15 @@ def create_application():
             'salary_address': request.form.get('salary_address', '').strip() if request.form.get('salary_option') != 'continue' else None,
             'last_leave_start': last_leave_start,
             'last_leave_end': last_leave_end,
+            'leave_balance': current_annual_balance if leave_config['deducts'] else None
         }
 
-        if not all([form_data['designation'], form_data['leave_days'], form_data['start_date'],
-                    form_data['end_date'], form_data['contact_address'], form_data['contact_tel'],
-                    form_data['leave_type']]):
+        # Validate required fields
+        required_fields = [
+            'designation', 'leave_days', 'start_date', 
+            'end_date', 'contact_address', 'contact_tel'
+        ]
+        if not all(form_data[field] for field in required_fields):
             flash('Please fill in all required fields.', 'danger')
             return redirect(url_for('staff.create_application'))
 
@@ -695,7 +717,7 @@ def create_application():
             flash('Alternate payment address is required.', 'danger')
             return redirect(url_for('staff.create_application'))
 
-        # Step 4: Handle file upload
+        # Handle file upload
         uploaded_file = request.files.get('supporting_doc')
         supporting_doc_path = None
         original_filename = None
@@ -722,7 +744,6 @@ def create_application():
 
         elif action == 'submit':
             try:
-                cur = conn.cursor(pymysql.cursors.DictCursor)
                 cur.execute("""
                     INSERT INTO leave_applications 
                     (name, pno, designation, leave_days, start_date, end_date, contact_address, contact_tel,
@@ -735,22 +756,31 @@ def create_application():
                     form_data['contact_address'], form_data['contact_tel'], form_data['leave_type'],
                     form_data['delegate'], form_data['staff_id'], form_data['salary_continue'],
                     form_data['salary_address'], form_data['last_leave_start'],
-                    form_data['last_leave_end'], current_balance, supporting_doc_path
+                    form_data['last_leave_end'], form_data['leave_balance'], supporting_doc_path
                 ))
+
+                # Update annual leave balance if applicable
+                if leave_config['deducts']:
+                    cur.execute("""
+                        UPDATE staff 
+                        SET leave_balance = leave_balance - %s 
+                        WHERE id = %s
+                    """, (leave_days, session['staff_id']))
 
                 conn.commit()
                 log_action(f"{form_data['name']} submitted a leave application", staff_id=form_data['staff_id'])
 
+                # Send notifications
                 send_email(
                     subject="Leave Application Submitted",
                     recipients=[staff_email],
-                    body=f"Hello {form_data['name']},\n\nYour leave application has been submitted successfully."
+                    body=f"Hello {form_data['name']},\n\nYour {leave_type} leave application for {leave_days} days has been submitted successfully."
                 )
 
                 send_email(
                     subject="New Leave Application Submitted",
-                    recipients=["clivebillzerean@gmail.com"],
-                    body=f"{form_data['name']} ({form_data['pno']}) has submitted a new leave application."
+                    recipients=["admin@example.com"],
+                    body=f"{form_data['name']} ({form_data['pno']}) has submitted a new {leave_type} leave application."
                 )
 
                 flash('Leave application submitted successfully.', 'success')
@@ -758,13 +788,55 @@ def create_application():
 
             except Exception as e:
                 conn.rollback()
-                flash(f'Error: {str(e)}', 'danger')
+                current_app.logger.error(f"Application submission error: {str(e)}", exc_info=True)
+                flash(f'Error submitting application: {str(e)}', 'danger')
                 return redirect(url_for('staff.create_application'))
             finally:
                 cur.close()
                 conn.close()
 
-    return render_template('staff/create_application.html')
+    # GET request - show form with leave balances
+    try:
+        conn = get_mysql_connection()
+        cur = conn.cursor(pymysql.cursors.DictCursor)
+        
+        # Get all used leave days by type
+        cur.execute("""
+            SELECT leave_type, SUM(leave_days) AS used_days
+            FROM leave_applications
+            WHERE staff_id = %s AND status = 'approved'
+            GROUP BY leave_type
+        """, (session['staff_id'],))
+        used_days = {row['leave_type']: row['used_days'] for row in cur.fetchall()}
+
+        # Calculate remaining days for each leave type
+        remaining_days = {}
+        for ltype, config in leave_entitlements.items():
+            if config['max_days'] is not None:
+                remaining = config['max_days'] - used_days.get(ltype, 0)
+                remaining_days[ltype] = max(remaining, 0)
+            else:
+                remaining_days[ltype] = 'Unlimited'
+
+        # Get current annual leave balance
+        cur.execute("SELECT leave_balance FROM staff WHERE id = %s", (session['staff_id'],))
+        remaining_days['Annual'] = cur.fetchone()['leave_balance']
+
+        return render_template(
+            'staff/create_application.html',
+            leave_balances=remaining_days,
+            leave_entitlements=leave_entitlements
+        )
+
+    except Exception as e:
+        current_app.logger.error(f"Error loading application form: {str(e)}", exc_info=True)
+        flash("Error loading application form. Please try again.", "danger")
+        return redirect(url_for('staff.staff_dashboard'))
+    finally:
+        if 'cur' in locals():
+            cur.close()
+        if 'conn' in locals():
+            conn.close()
 
 
 @staff_bp.route('/application/review', methods=['GET', 'POST'])
