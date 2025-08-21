@@ -599,20 +599,10 @@ def create_application():
     def calculate_working_days(start_date, end_date):
         if not start_date or not end_date:
             return 0
-        
         delta = end_date - start_date
-        total_days = delta.days + 1  # Include both start and end dates
-        
-        # Count weekdays
-        working_days = 0
-        for i in range(total_days):
-            current_date = start_date + timedelta(days=i)
-            if current_date.weekday() < 5:  # 0-4 = Monday-Friday
-                working_days += 1
-    
-        return working_days
+        total_days = delta.days + 1
+        return sum(1 for i in range(total_days) if (start_date + timedelta(days=i)).weekday() < 5)
 
-    # Leave entitlements configuration
     leave_entitlements = {
         "Annual": {"max_days": 30, "deducts": True},
         "Sick": {"max_days": 30, "deducts": False},
@@ -625,21 +615,18 @@ def create_application():
 
     if request.method == 'POST':
         action = request.form.get('action')
-        start_date = parse_date(request.form.get('start_date', ''))
-        end_date = parse_date(request.form.get('end_date', ''))
-        last_leave_start = parse_date(request.form.get('last_leave_start', ''))
-        last_leave_end = parse_date(request.form.get('last_leave_end', ''))
+        start_date = parse_date(request.form.get('start_date'))
+        end_date = parse_date(request.form.get('end_date'))
+        last_leave_start = parse_date(request.form.get('last_leave_start'))
+        last_leave_end = parse_date(request.form.get('last_leave_end'))
         leave_type = request.form.get('leave_type', '').strip()
         leave_days = calculate_working_days(start_date, end_date)
 
-        # Step 1: Fetch staff details and leave balances
         conn = get_mysql_connection()
         cur = conn.cursor(pymysql.cursors.DictCursor)
-        
-        # Get staff info
+
         cur.execute("SELECT id, email, leave_balance FROM staff WHERE id = %s", (session['staff_id'],))
         staff_row = cur.fetchone()
-
         if not staff_row:
             flash("Unable to fetch your staff details.", "danger")
             return redirect(url_for('staff.create_application'))
@@ -647,7 +634,6 @@ def create_application():
         staff_email = staff_row['email']
         current_annual_balance = staff_row['leave_balance']
 
-        # Get all used leave days by type
         cur.execute("""
             SELECT leave_type, SUM(leave_days) AS used_days
             FROM leave_applications
@@ -656,7 +642,6 @@ def create_application():
         """, (session['staff_id'],))
         used_days = {row['leave_type']: row['used_days'] for row in cur.fetchall()}
 
-        # Calculate remaining days for each leave type
         remaining_days = {}
         for ltype, config in leave_entitlements.items():
             if config['max_days'] is not None:
@@ -665,7 +650,6 @@ def create_application():
             else:
                 remaining_days[ltype] = 'Unlimited'
 
-        # Validate leave type and days
         if leave_type not in leave_entitlements:
             flash("Invalid leave type selected.", "danger")
             return redirect(url_for('staff.create_application'))
@@ -674,17 +658,14 @@ def create_application():
         max_days = leave_config['max_days']
         remaining = remaining_days.get(leave_type, 0)
 
-        # Check against max entitlement
         if max_days and leave_days > max_days:
             flash(f"Maximum {max_days} days allowed for {leave_type} leave", "danger")
             return redirect(url_for('staff.create_application'))
 
-        # Check against remaining balance
         if remaining != 'Unlimited' and leave_days > remaining:
             flash(f"You only have {remaining} days remaining for {leave_type} leave", "danger")
             return redirect(url_for('staff.create_application'))
 
-        # Step 2: Form data preparation
         form_data = {
             'name': session['staff_name'],
             'pno': session['staff_pno'],
@@ -704,11 +685,7 @@ def create_application():
             'leave_balance': current_annual_balance if leave_config['deducts'] else None
         }
 
-        # Validate required fields
-        required_fields = [
-            'designation', 'leave_days', 'start_date', 
-            'end_date', 'contact_address', 'contact_tel'
-        ]
+        required_fields = ['designation', 'leave_days', 'start_date', 'end_date', 'contact_address', 'contact_tel']
         if not all(form_data[field] for field in required_fields):
             flash('Please fill in all required fields.', 'danger')
             return redirect(url_for('staff.create_application'))
@@ -717,11 +694,9 @@ def create_application():
             flash('Alternate payment address is required.', 'danger')
             return redirect(url_for('staff.create_application'))
 
-        # Handle file upload
+        # File upload
         uploaded_file = request.files.get('supporting_doc')
         supporting_doc_path = None
-        original_filename = None
-
         if uploaded_file and uploaded_file.filename != '':
             if not allowed_file(uploaded_file.filename):
                 flash("Invalid file type. Allowed: PDF, Word, JPG, PNG", "danger")
@@ -730,16 +705,13 @@ def create_application():
             uploads_folder = os.path.join(current_app.static_folder, 'uploads')
             os.makedirs(uploads_folder, exist_ok=True)
             unique_filename = f"{uuid.uuid4().hex}_{secure_filename(uploaded_file.filename)}"
-            saved_path = os.path.join(uploads_folder, unique_filename)
-            uploaded_file.save(saved_path)
-
+            uploaded_file.save(os.path.join(uploads_folder, unique_filename))
             supporting_doc_path = os.path.join('uploads', unique_filename)
-            original_filename = uploaded_file.filename
 
         if action == 'review':
             session['preview_form_data'] = form_data
             session['preview_file_path'] = supporting_doc_path
-            session['preview_original_filename'] = original_filename
+            session['preview_original_filename'] = uploaded_file.filename if uploaded_file else None
             return redirect(url_for('staff.preview_application'))
 
         elif action == 'submit':
@@ -747,8 +719,8 @@ def create_application():
                 cur.execute("""
                     INSERT INTO leave_applications 
                     (name, pno, designation, leave_days, start_date, end_date, contact_address, contact_tel,
-                    leave_type, delegate, staff_id, salary_continue, salary_address,
-                    last_leave_start, last_leave_end, leave_balance, supporting_doc)
+                     leave_type, delegate, staff_id, salary_continue, salary_address,
+                     last_leave_start, last_leave_end, leave_balance, supporting_doc)
                     VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """, (
                     form_data['name'], form_data['pno'], form_data['designation'],
@@ -759,7 +731,6 @@ def create_application():
                     form_data['last_leave_end'], form_data['leave_balance'], supporting_doc_path
                 ))
 
-                # Update annual leave balance if applicable
                 if leave_config['deducts']:
                     cur.execute("""
                         UPDATE staff 
@@ -770,7 +741,6 @@ def create_application():
                 conn.commit()
                 log_action(f"{form_data['name']} submitted a leave application", staff_id=form_data['staff_id'])
 
-                # Send notifications
                 send_email(
                     subject="Leave Application Submitted",
                     recipients=[staff_email],
@@ -779,7 +749,7 @@ def create_application():
 
                 send_email(
                     subject="New Leave Application Submitted",
-                    recipients=["admin@example.com"],
+                    recipients=["clivebillzerean@gmail.com"],
                     body=f"{form_data['name']} ({form_data['pno']}) has submitted a new {leave_type} leave application."
                 )
 
@@ -795,12 +765,11 @@ def create_application():
                 cur.close()
                 conn.close()
 
-    # GET request - show form with leave balances
+    # GET: Load form with balances
     try:
         conn = get_mysql_connection()
         cur = conn.cursor(pymysql.cursors.DictCursor)
-        
-        # Get all used leave days by type
+
         cur.execute("""
             SELECT leave_type, SUM(leave_days) AS used_days
             FROM leave_applications
@@ -809,7 +778,6 @@ def create_application():
         """, (session['staff_id'],))
         used_days = {row['leave_type']: row['used_days'] for row in cur.fetchall()}
 
-        # Calculate remaining days for each leave type
         remaining_days = {}
         for ltype, config in leave_entitlements.items():
             if config['max_days'] is not None:
@@ -818,7 +786,6 @@ def create_application():
             else:
                 remaining_days[ltype] = 'Unlimited'
 
-        # Get current annual leave balance
         cur.execute("SELECT leave_balance FROM staff WHERE id = %s", (session['staff_id'],))
         remaining_days['Annual'] = cur.fetchone()['leave_balance']
 
@@ -833,120 +800,58 @@ def create_application():
         flash("Error loading application form. Please try again.", "danger")
         return redirect(url_for('staff.staff_dashboard'))
     finally:
-        if 'cur' in locals():
-            cur.close()
-        if 'conn' in locals():
-            conn.close()
+        if 'cur' in locals(): cur.close()
+        if 'conn' in locals(): conn.close()
 
-
-@staff_bp.route('/application/review', methods=['GET', 'POST'])
+@staff_bp.route('/application/review', methods=['GET'])
 @staff_required
 def preview_application():
     def ensure_date_object(date_value):
-        """Convert string dates to date objects, leave existing date objects unchanged"""
-        if date_value is None:
+        if not date_value:
             return None
         if isinstance(date_value, date):
             return date_value
-        try:
-            return datetime.strptime(date_value, '%Y-%m-%d').date()
-        except (ValueError, TypeError):
+        for fmt in ['%Y-%m-%d', '%a, %d %b %Y %H:%M:%S GMT', '%b %d, %Y']:
             try:
-                return datetime.strptime(date_value, '%a, %d %b %Y %H:%M:%S GMT').date()
+                return datetime.strptime(date_value, fmt).date()
             except (ValueError, TypeError):
-                try:
-                    return datetime.strptime(date_value, '%b %d, %Y').date()
-                except (ValueError, TypeError):
-                    return None
+                continue
+        return None
 
-    if request.method == 'POST':
-        try:
-            # Collect all form data
-            form_data = {
-                'name': session.get('staff_name', ''),
-                'pno': session.get('staff_pno', ''),
-                'designation': request.form.get('designation', '').strip(),
-                'leave_days': request.form.get('leave_days', ''),
-                'start_date': request.form.get('start_date'),
-                'end_date': request.form.get('end_date'),
-                'contact_address': request.form.get('contact_address', '').strip(),
-                'contact_tel': request.form.get('contact_tel', '').strip(),
-                'leave_type': request.form.get('leave_type', '').strip(),
-                'delegate': request.form.get('delegate', '').strip(),
-                'staff_id': session.get('staff_id'),
-                'salary_continue': request.form.get('salary_option', 'continue') == 'continue',
-                'salary_address': request.form.get('salary_address', '').strip(),
-                'last_leave_start': request.form.get('last_leave_start'),
-                'last_leave_end': request.form.get('last_leave_end'),
-                'salary_option': request.form.get('salary_option', 'continue')
-            }
+    try:
+        form_data = session.get('preview_form_data')
+        if not form_data:
+            flash('Preview session expired. Please refill the form.', 'warning')
+            return redirect(url_for('staff.create_application'))
 
-            # Handle file upload
-            uploaded_file = request.files.get('supporting_doc')
+        # Format date fields
+        for key in ['start_date', 'end_date', 'last_leave_start', 'last_leave_end']:
+            raw_value = form_data.get(key)
+            parsed_date = ensure_date_object(raw_value)
+            form_data[f'{key}_formatted'] = parsed_date.strftime('%b %d, %Y') if parsed_date else 'N/A'
+
+        # File info
+        file_path = session.get('preview_file_path')
+        original_filename = session.get('preview_original_filename')
+
+        # Confirm file exists
+        full_file_path = os.path.join(current_app.static_folder, file_path) if file_path else None
+        if file_path and not os.path.isfile(full_file_path):
+            current_app.logger.warning(f"[Preview] File missing: {full_file_path}")
             file_path = None
             original_filename = None
-            if uploaded_file and uploaded_file.filename:
-                if not allowed_file(uploaded_file.filename):
-                    flash("Invalid file type. Allowed: PDF, Word, JPG, PNG", "danger")
-                    return redirect(url_for('staff.create_application'))
 
-                uploads_dir = os.path.join(current_app.static_folder, 'uploads')
-                os.makedirs(uploads_dir, exist_ok=True)
+        return render_template(
+            'staff/review_application.html',
+            form_data=form_data,
+            file_path=file_path,
+            original_filename=original_filename
+        )
 
-                original_filename = secure_filename(uploaded_file.filename)
-                unique_filename = f"{uuid.uuid4().hex}_{original_filename}"
-                file_path = os.path.join('uploads', unique_filename)
-                uploaded_file.save(os.path.join(current_app.static_folder, file_path))
-
-            session['preview_form_data'] = form_data
-            session['preview_file_path'] = file_path
-            session['preview_original_filename'] = original_filename
-
-            return redirect(url_for('staff.preview_application'))
-
-        except Exception as e:
-            current_app.logger.error(f"Preview POST error: {str(e)}", exc_info=True)
-            flash("An error occurred while processing your preview.", "danger")
-            return redirect(url_for('staff.create_application'))
-
-    else:  # GET request
-        try:
-            form_data = session.get('preview_form_data', {})
-            if not form_data:
-                flash('Session expired. Please refill the form.', 'danger')
-                return redirect(url_for('staff.create_application'))
-
-            # Process all date fields
-            date_fields = ['start_date', 'end_date', 'last_leave_start', 'last_leave_end']
-            for field in date_fields:
-                raw_value = form_data.get(field)
-                date_obj = ensure_date_object(raw_value)
-                current_app.logger.debug(f"[Preview] {field}: Raw='{raw_value}', Parsed='{date_obj}'")
-                form_data[f'{field}_formatted'] = date_obj.strftime('%b %d, %Y') if date_obj else 'N/A'
-
-            # Handle file data
-            file_path = session.get('preview_file_path')
-            original_filename = session.get('preview_original_filename')
-
-            if file_path:
-                full_path = os.path.join(current_app.static_folder, file_path)
-                if not os.path.exists(full_path):
-                    current_app.logger.warning(f"File not found: {full_path}")
-                    file_path = None
-                    original_filename = None
-
-            return render_template(
-                'staff/review_application.html',
-                form_data=form_data,
-                file_path=file_path,
-                original_filename=original_filename
-            )
-
-        except Exception as e:
-            current_app.logger.error(f"Preview GET error: {str(e)}", exc_info=True)
-            flash("An error occurred while loading the preview.", "danger")
-            return redirect(url_for('staff.create_application'))
-
+    except Exception as e:
+        current_app.logger.error(f"Preview load error: {str(e)}", exc_info=True)
+        flash('Unable to load preview. Please try again.', 'danger')
+        return redirect(url_for('staff.create_application'))
 
 @staff_bp.route('/application/view/<int:app_id>')
 @staff_required

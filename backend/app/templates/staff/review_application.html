@@ -11,7 +11,7 @@
         </div>
         <div class="card-body">
             <form method="POST" action="{{ url_for('staff.create_application') }}">
-                <!-- Hidden inputs for preserving form data -->
+                <!-- Preserve form data -->
                 {% for key, value in form_data.items() %}
                     <input type="hidden" name="{{ key }}" value="{{ value }}">
                 {% endfor %}
@@ -34,7 +34,6 @@
                     <dt class="col-sm-4">Leave Type</dt>
                     <dd class="col-sm-8">{{ form_data.leave_type }}</dd>
 
-                    <!-- Replace date display lines with safe formatting -->
                     <dt class="col-sm-4">Start Date</dt>
                     <dd class="col-sm-8">{{ form_data.start_date_formatted }}</dd>
 
@@ -68,27 +67,18 @@
                         {% endif %}
                     </dd>
 
-                    {% if form_data.last_leave_start or form_data.last_leave_end %}
-                        <dt class="col-sm-4">Previous Leave Start</dt>
-                        <dd class="col-sm-8">{{ form_data.last_leave_start or "N/A" }}</dd>
-
-                        <dt class="col-sm-4">Previous Leave End</dt>
-                        <dd class="col-sm-8">{{ form_data.last_leave_end or "N/A" }}</dd>
+                    {% if file_path %}
+                        {% set filename_only = file_path.split('/')[-1] %}
+                        <dt class="col-sm-4">Supporting Document</dt>
+                        <dd class="col-sm-8">
+                            <a href="{{ url_for('admin.download_uploaded_document', filename=filename_only) }}"
+                               target="_blank"
+                               class="btn btn-sm btn-outline-primary"
+                               download="{{ original_filename }}">
+                                <i class="fas fa-download me-1"></i> Download {{ original_filename or 'Document' }}
+                            </a>
+                        </dd>
                     {% endif %}
-
-                  {% if file_path %}
-                {% set filename_only = file_path.split('/')[-1] %}
-                <dt class="col-sm-4">Supporting Document</dt>
-                <dd class="col-sm-8">
-                    <a href="{{ url_for('static', filename=file_path.replace('\\', '/')) }}"
-                        target="_blank"
-                        class="btn btn-sm btn-outline-primary"
-                        download="{{ original_filename }}">
-                            <i class="fas fa-download me-1"></i> Download {{ original_filename }}
-                        </a>
-
-                </dd>
-            {% endif %}
                 </dl>
 
                 <div class="text-end border-top pt-3">
@@ -100,5 +90,4 @@
         </div>
     </div>
 </div>
-
 {% endblock %}

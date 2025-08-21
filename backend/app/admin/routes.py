@@ -1,5 +1,6 @@
 from flask import Blueprint, current_app, render_template, request, redirect, url_for, flash, session, make_response
 from werkzeug.security import check_password_hash
+from werkzeug.utils import secure_filename
 from weasyprint import HTML
 from backend.app.extensions import get_mysql_connection, mail, pymysql
 from backend.app.utils.audit import log_action
@@ -11,7 +12,7 @@ import base64
 import pandas as pd
 from flask import make_response
 import pymysql
-from flask import send_from_directory, abort
+from flask import current_app, abort, send_from_directory
 from datetime import datetime, timedelta
 
 admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
@@ -871,28 +872,8 @@ def export_leave_excel():
     return response
 
 
-@admin_bp.route('/download/<path:filename>')
+@admin_bp.route('/uploads/<path:filename>')
 @admin_required
 def download_uploaded_document(filename):
-    try:
-        filename = filename.replace('\\', '/')  # 🔥 normalize Windows slashes
-
-        # Security check - prevent directory traversal
-        if '..' in filename or filename.startswith('/'):
-            abort(404)
-
-        # Extract just the filename part (remove 'uploads/' if present)
-        clean_filename = filename.split('/')[-1] if '/' in filename else filename
-
-        uploads_folder = os.path.join(current_app.static_folder, 'uploads')
-        file_path = os.path.join(uploads_folder, clean_filename)
-
-        if not os.path.exists(file_path):
-            current_app.logger.error(f"File not found: {file_path}")
-            abort(404)
-
-        return send_from_directory(uploads_folder, clean_filename, as_attachment=True)
-
-    except Exception as e:
-        current_app.logger.error(f"Download error: {str(e)}")
-        abort(404)
+    uploads_folder = os.path.join(current_app.root_path, 'static', 'uploads')
+    return send_from_directory(uploads_folder, filename, as_attachment=True)
