@@ -1,4 +1,3 @@
-from werkzeug.security import generate_password_hash
-
-hashed_password = generate_password_hash("admin123")
-print(hashed_password)
+import os
+print(os.getenv("POSTGRES_HOST"))
+print(os.getenv("POSTGRES_PORT"))

@@ -1,12 +1,12 @@
 from flask import Blueprint
-from backend.app.extensions import get_mysql_connection  # ✅ Correct import
+from backend.app.extensions import get_postgres_connection # ✅ Correct import
 
 setup_db_bp = Blueprint('setup_db', __name__)
 
 @setup_db_bp.route('/setup-db')
 def setup_database():
     try:
-        conn = get_mysql_connection()
+        conn = get_postgres_connection()
         cur = conn.cursor()
 
         cur.execute("""

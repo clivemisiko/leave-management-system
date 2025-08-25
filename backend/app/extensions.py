@@ -1,29 +1,35 @@
-# backend/app/extensions.py
-import pymysql
-import os
-from dotenv import load_dotenv
 from flask_mail import Mail
 from flask_sqlalchemy import SQLAlchemy
+import psycopg2
+import os
+from urllib.parse import urlparse
 
-
-# ✅ Load environment variables
-load_dotenv()
-
+mail = Mail()
 db = SQLAlchemy()
 
-# ✅ Flask-Mail instance
-mail = Mail()
+def get_postgres_connection():
+    """
+    Returns a PostgreSQL connection using the correct Railway connection string.
+    """
+    try:
+        # Use the connection string from Railway dashboard
+        database_url = os.getenv("DATABASE_URL", "postgresql://postgres:BPfofFISBoCNEKDBjoHcDWvmVLXuotem@nozomi.proxy.rlwy.net:45865/railway")
+        
+        # Parse the DATABASE_URL
+        result = urlparse(database_url)
+        
+        # Connect with SSL required (Railway needs this)
+        conn = psycopg2.connect(
+            dbname=result.path.lstrip("/"),
+            user=result.username,
+            password=result.password,
+            host=result.hostname,
+            port=result.port or 5432,
+            sslmode='require'  # Railway requires SSL
+        )
+        return conn
 
-# ✅ Function to get a MySQL connection (works with TiDB)
-def get_mysql_connection():
-    return pymysql.connect(
-        host=os.getenv("MYSQL_HOST"),
-        user=os.getenv("MYSQL_USER"),
-        password=os.getenv("MYSQL_PASSWORD"),
-        db=os.getenv("MYSQL_DB"),
-        port=int(os.getenv("MYSQL_PORT")),
-        ssl={"fake_flag_to_enable_tls": True},
-        cursorclass=pymysql.cursors.DictCursor,
-        init_command="SET time_zone='+00:00'",  # Ensure UTC
-        autocommit=True
-    )
+    except Exception as e:
+        print(f"❌ Database connection failed: {e}")
+        print(f"   Attempted connection to: {os.getenv('POSTGRES_HOST', 'nozomi.proxy.rlwy.net')}:{os.getenv('POSTGRES_PORT', 45865)}")
+        return None

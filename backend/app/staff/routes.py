@@ -4,11 +4,11 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from functools import wraps
 from datetime import datetime, timedelta
 from itsdangerous import URLSafeTimedSerializer
-import os, pymysql, re, uuid, base64
+import os, re, uuid, base64
 from werkzeug.utils import secure_filename
 from collections import Counter
 from email_validator import validate_email, EmailNotValidError
-from backend.app.extensions import get_mysql_connection, mail, db
+from backend.app.extensions import get_postgres_connection, mail, db
 from backend.app.models import Staff, LeaveApplication
 from backend.app.utils.email import send_email, send_reset_email
 from backend.app.utils.auth import update_password
@@ -16,6 +16,7 @@ from backend.app.utils.audit import log_action
 from flask_mail import Message  # Added this import
 from datetime import datetime, date
 from weasyprint import HTML
+from psycopg2.extras import RealDictCursor
 from flask import (
     Blueprint, render_template, request, redirect, url_for,
     flash, session, make_response, abort, send_from_directory,
@@ -23,6 +24,7 @@ from flask import (
 )
 import uuid
 from flask_mail import Message
+import psycopg2
 
 # Initialize Blueprint
 staff_bp = Blueprint('staff', __name__, template_folder='templates')
@@ -71,6 +73,15 @@ def staff_required(f):
 
     return decorated_function
 
+def get_postgres_connection():
+    return psycopg2.connect(
+        host="nozomi.proxy.rlwy.net",
+        port=45865,
+        user="postgres",   # 👈 update if Railway gave different username
+        password="BPfofFISBoCNEKDBjoHcDWvmVLXuotem",
+        dbname="railway",
+        cursor_factory=RealDictCursor
+    )
 
 # Authentication Routes
 @staff_bp.route('/login', methods=['GET', 'POST'])
@@ -82,8 +93,8 @@ def staff_login():
         login_input = request.form['login_input'].strip()
         password = request.form['password']
 
-        conn = get_mysql_connection()
-        cur = conn.cursor(pymysql.cursors.DictCursor)
+        conn = get_postgres_connection()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
 
         if '@' in login_input:
             cur.execute("SELECT * FROM staff WHERE email = %s", (login_input,))
@@ -150,9 +161,12 @@ def register():
             flash('Please enter a valid email address', 'danger')
             return redirect(url_for('staff.register'))
 
+        conn = None
+        cur = None
         try:
-            conn = get_mysql_connection()
+            conn = get_postgres_connection()
             cur = conn.cursor()
+
             cur.execute("SELECT id FROM staff WHERE pno = %s OR email = %s", (pno, email))
             if cur.fetchone():
                 flash('P/Number or email already registered', 'danger')
@@ -160,10 +174,11 @@ def register():
 
             hashed_password = generate_password_hash(password)
             verification_token = str(uuid.uuid4())
+
             cur.execute("""
                 INSERT INTO staff (pno, username, email, password, designation, is_verified, verification_token)
                 VALUES (%s, %s, %s, %s, %s, %s, %s)
-            """, (pno, username, email, hashed_password, designation, 0, verification_token))
+            """, (pno, username, email, hashed_password, designation, False, verification_token))
             conn.commit()
 
             # ✅ Send verification email
@@ -176,14 +191,18 @@ def register():
             return redirect(url_for('staff.staff_login'))
 
         except Exception as e:
-            conn.rollback()
+            if conn:
+                conn.rollback()
             current_app.logger.error(f"Registration error: {e}")
             flash(f"Registration failed: {e}", 'danger')
             return redirect(url_for('staff.register'))
+
         finally:
             if cur: cur.close()
+            if conn: conn.close()
 
     return render_template('staff/register.html')
+
 
 
 @staff_bp.route('/forgot-password', methods=['GET', 'POST'])
@@ -200,7 +219,7 @@ def forgot_password():
             return redirect(url_for('staff.forgot_password'))
 
         try:
-            conn = get_mysql_connection()
+            conn = get_postgres_connection()
             cur = conn.cursor()
             cur.execute("SELECT id, username FROM staff WHERE email = %s", (email,))
             staff = cur.fetchone()
@@ -255,7 +274,7 @@ def reset_password(token):
             flash('Reset link has expired or is invalid.', 'danger')
             return redirect(url_for('staff.forgot_password'))
 
-        conn = get_mysql_connection()
+        conn = get_postgres_connection()
         cur = conn.cursor()
 
         cur.execute("""
@@ -312,14 +331,11 @@ def staff_dashboard():
         flash('Session expired. Please login again.', 'danger')
         return redirect(url_for('staff.staff_login'))
 
-    if session.pop('login_success', None):
-        flash('Login successful', 'success')
-
     conn = None
     cur = None
     try:
-        conn = get_mysql_connection()
-        cur = conn.cursor(pymysql.cursors.DictCursor)
+        conn = get_postgres_connection()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
 
         # Get staff info
         cur.execute("SELECT username, pno FROM staff WHERE id = %s", (staff_id,))
@@ -428,23 +444,24 @@ def staff_dashboard():
         flash("Unexpected error occurred", "danger")
         return redirect(url_for('staff.staff_login'))
     finally:
-        if cur: cur.close()
-        if conn: conn.close()
-
+        # ✅ Safe cleanup - check if variables exist
+        if 'cur' in locals() and cur:
+            cur.close()
+        if 'conn' in locals() and conn:
+            conn.close()
 
 # Profile and Settings Routes
 @staff_bp.route('/profile')
 @staff_required
 def staff_profile():
-    # Clear any existing flash messages
     try:
         staff_id = session.get('staff_id')
         if not staff_id:
             flash('Session expired. Please login again.', 'danger')
             return redirect(url_for('staff.staff_login'))
 
-        conn = get_mysql_connection()
-        cur = conn.cursor(pymysql.cursors.DictCursor)
+        conn = get_postgres_connection()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
 
         current_app.logger.debug(f"Fetching profile for staff_id: {staff_id}")  # Debug log
 
@@ -495,8 +512,9 @@ def change_password():
             return redirect(url_for('staff.change_password'))
 
         staff_id = session.get('staff_id')
-        conn = get_mysql_connection()
-        cur = conn.cursor(pymysql.cursors.DictCursor)
+        conn = get_postgres_connection()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        
         cur.execute("SELECT password FROM staff WHERE id = %s", (staff_id,))
         staff = cur.fetchone()
 
@@ -527,8 +545,9 @@ def notification_settings():
         leave_approvals = request.form.get('leave_approvals') == 'on'
 
         try:
-            conn = get_mysql_connection()
-            cur = conn.cursor()
+            conn = get_postgres_connection()
+            cur = conn.cursor(cursor_factory=RealDictCursor)
+
             cur.execute("""
                 UPDATE staff 
                 SET email_notifications = %s, 
@@ -550,8 +569,9 @@ def notification_settings():
         return redirect(url_for('staff.notification_settings'))
 
     try:
-        conn = get_mysql_connection()
-        cur = conn.cursor(pymysql.cursors.DictCursor)
+        conn = get_postgres_connection()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+
         cur.execute("""
             SELECT email_notifications, sms_notifications, leave_approvals 
             FROM staff 
@@ -622,8 +642,8 @@ def create_application():
         leave_type = request.form.get('leave_type', '').strip()
         leave_days = calculate_working_days(start_date, end_date)
 
-        conn = get_mysql_connection()
-        cur = conn.cursor(pymysql.cursors.DictCursor)
+        conn = get_postgres_connection()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
 
         cur.execute("SELECT id, email, leave_balance FROM staff WHERE id = %s", (session['staff_id'],))
         staff_row = cur.fetchone()
@@ -706,7 +726,12 @@ def create_application():
             os.makedirs(uploads_folder, exist_ok=True)
             unique_filename = f"{uuid.uuid4().hex}_{secure_filename(uploaded_file.filename)}"
             uploaded_file.save(os.path.join(uploads_folder, unique_filename))
-            supporting_doc_path = os.path.join('uploads', unique_filename)
+            supporting_doc_path = f"uploads/{unique_filename}"
+            current_app.logger.info(f"[DEBUG] Uploaded file received: {uploaded_file.filename}")
+            current_app.logger.info(f"[DEBUG] File saved at: {os.path.join(uploads_folder, unique_filename)}")
+            current_app.logger.info(f"[DEBUG] DB path set as: {supporting_doc_path}")
+        else:
+            current_app.logger.warning("[DEBUG] No supporting document uploaded.")
 
         if action == 'review':
             session['preview_form_data'] = form_data
@@ -716,6 +741,15 @@ def create_application():
 
         elif action == 'submit':
             try:
+                # Reuse preview file path if no new file uploaded
+                if not supporting_doc_path and session.get('preview_file_path'):
+                    supporting_doc_path = session['preview_file_path']
+                    current_app.logger.info(f"[DEBUG] Using preview file path: {supporting_doc_path}")
+
+                current_app.logger.info(
+                    f"[DEBUG] Inserting application with supporting_doc_path={supporting_doc_path}"
+                )
+
                 cur.execute("""
                     INSERT INTO leave_applications 
                     (name, pno, designation, leave_days, start_date, end_date, contact_address, contact_tel,
@@ -767,8 +801,8 @@ def create_application():
 
     # GET: Load form with balances
     try:
-        conn = get_mysql_connection()
-        cur = conn.cursor(pymysql.cursors.DictCursor)
+        conn = get_postgres_connection()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
 
         cur.execute("""
             SELECT leave_type, SUM(leave_days) AS used_days
@@ -802,6 +836,7 @@ def create_application():
     finally:
         if 'cur' in locals(): cur.close()
         if 'conn' in locals(): conn.close()
+
 
 @staff_bp.route('/application/review', methods=['GET'])
 @staff_required
@@ -857,8 +892,8 @@ def preview_application():
 @staff_required
 def view_application(app_id):
     try:
-        conn = get_mysql_connection()
-        cur = conn.cursor(pymysql.cursors.DictCursor)
+        conn = get_postgres_connection()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
 
         cur.execute("SELECT * FROM leave_applications WHERE id = %s AND staff_id = %s", (app_id, session['staff_id']))
         application = cur.fetchone()
@@ -884,8 +919,8 @@ def view_application(app_id):
 @staff_required
 def print_application(app_id):
     try:
-        conn = get_mysql_connection()
-        cur = conn.cursor(pymysql.cursors.DictCursor)
+        conn = get_postgres_connection()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
 
         # Fetch the application and related staff info
         cur.execute("""
@@ -1006,7 +1041,7 @@ def cancel_application(id):
     conn = None
     cur = None
     try:
-        conn = get_mysql_connection()
+        conn = get_postgres_connection()
         cur = conn.cursor()
 
         cur.execute("""
@@ -1068,29 +1103,59 @@ def download_file(filename):
 
 @staff_bp.route('/verify/<token>')
 def verify_email(token):
+    conn = None
+    cur = None
+    
     try:
-        conn = get_mysql_connection()
-        cur = conn.cursor(pymysql.cursors.DictCursor)
+        conn = get_postgres_connection()
+        # Use psycopg2's DictCursor, not pymysql's
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
-        cur.execute("SELECT id FROM staff WHERE verification_token = %s AND is_verified = 0", (token,))
+        # Check if token exists and account is not already verified
+        cur.execute("""
+            SELECT id FROM staff 
+            WHERE verification_token = %s AND is_verified = FALSE
+        """, (token,))
         result = cur.fetchone()
 
         if result:
-            staff_id = result['id']  # ✅ safer access via key
+            staff_id = result['id']
+            # Mark account as verified and clear the token
             cur.execute("""
-                UPDATE staff SET is_verified = 1, verification_token = NULL WHERE id = %s
+                UPDATE staff 
+                SET is_verified = TRUE, verification_token = NULL 
+                WHERE id = %s
             """, (staff_id,))
             conn.commit()
             flash("Account verified successfully! You may now log in.", "success")
         else:
-            flash("Invalid or expired verification link.", "danger")
+            # Check if token exists but account is already verified
+            cur.execute("""
+                SELECT id FROM staff 
+                WHERE verification_token = %s AND is_verified = TRUE
+            """, (token,))
+            if cur.fetchone():
+                flash("Account already verified. Please log in.", "info")
+            else:
+                flash("Invalid or expired verification link.", "danger")
 
     except Exception as e:
         current_app.logger.error(f"Verification error: {e}", exc_info=True)
-        flash("An error occurred during verification.", "danger")
+        flash("An error occurred during verification. Please try again.", "danger")
+        if conn:
+            conn.rollback()
 
     finally:
-        if cur: cur.close()
-        if conn: conn.close()
-
+        # Safe cleanup
+        if 'cur' in locals() and cur:
+            try:
+                cur.close()
+            except:
+                pass
+        if 'conn' in locals() and conn:
+            try:
+                conn.close()
+            except:
+                pass
+    
     return redirect(url_for('staff.staff_login'))

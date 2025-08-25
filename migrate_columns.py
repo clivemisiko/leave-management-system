@@ -1,5 +1,5 @@
 # migrate_columns.py
-from backend.app.extensions import get_mysql_connection
+from backend.app.extensions import get_postgres_connection()
 
 def column_exists(cursor, table, column):
     cursor.execute(f"""
@@ -17,7 +17,7 @@ def add_column_if_missing(cursor, table, column, definition):
 
 def run_column_migrations():
     try:
-        conn = get_mysql_connection()
+        conn = get_postgres_connection()
         cur = conn.cursor()
 
         # Columns to ensure in leave_applications

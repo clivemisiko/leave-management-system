@@ -1,10 +1,10 @@
-from backend.app.extensions import get_mysql_connection
+from backend.app.extensions import get_postgres_connection
 from datetime import datetime
 import pymysql
 
 def log_action(action, staff_id=None, admin_username=None):
     try:
-        conn = get_mysql_connection()
+        conn = get_postgres_connection()
         with conn.cursor(pymysql.cursors.DictCursor) as cur:
             cur.execute("""
                 INSERT INTO activity_logs (staff_id, admin_username, action, timestamp)

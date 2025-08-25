@@ -1,20 +1,54 @@
-import pymysql
+# add_missing_columns.py
+from backend.app import create_app
+from backend.app.extensions import get_postgres_connection
 
-try:
-    connection = pymysql.connect(
-        host='interchange.proxy.rlwy.net',
-        user='root',
-        password='mevtivlyusqfhxst',
-        database='railway',
-        port=24117,
-        connect_timeout=10,
-    )
-    print("✅ Connected to MySQL")
+app = create_app()
 
-    with connection.cursor() as cursor:
-        cursor.execute("SHOW TABLES")
-        tables = cursor.fetchall()
-        print("📋 Tables:", tables)
+def add_missing_columns():
+    with app.app_context():
+        conn = None
+        cur = None
+        try:
+            conn = get_postgres_connection()
+            if not conn:
+                print("❌ Failed to get database connection")
+                return
+                
+            cur = conn.cursor()
 
-except Exception as e:
-    print("❌ Error:", e)
+            # Check and add designation column to staff table
+            cur.execute("""
+                SELECT COUNT(*)
+                FROM information_schema.columns
+                WHERE table_schema = 'public'
+                AND table_name = 'staff'
+                AND column_name = 'designation'
+            """)
+            
+            exists = cur.fetchone()[0]
+            
+            if not exists:
+                print("⚠️ Adding missing 'designation' column to staff table...")
+                cur.execute("ALTER TABLE staff ADD COLUMN designation VARCHAR(100)")
+                print("✅ 'designation' column added successfully.")
+            else:
+                print("✅ 'designation' column already exists.")
+
+            conn.commit()
+            print("🎉 Missing columns have been added!")
+
+        except Exception as e:
+            if conn:
+                conn.rollback()
+            print(f"❌ Error: {e}")
+            import traceback
+            traceback.print_exc()
+
+        finally:
+            if cur:
+                cur.close()
+            if conn:
+                conn.close()
+
+if __name__ == '__main__':
+    add_missing_columns()

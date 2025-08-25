@@ -2,7 +2,7 @@ from flask import Blueprint, current_app, render_template, request, redirect, ur
 from werkzeug.security import check_password_hash
 from werkzeug.utils import secure_filename
 from weasyprint import HTML
-from backend.app.extensions import get_mysql_connection, mail, pymysql
+from backend.app.extensions import get_postgres_connection, mail, psycopg2
 from backend.app.utils.audit import log_action
 from backend.app.utils.email import send_email
 import os
@@ -11,9 +11,10 @@ from datetime import datetime
 import base64
 import pandas as pd
 from flask import make_response
-import pymysql
 from flask import current_app, abort, send_from_directory
 from datetime import datetime, timedelta
+import psycopg2
+from psycopg2.extras import RealDictCursor
 
 admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
 
@@ -47,6 +48,16 @@ def get_signature_base64():
         print("❌ Signature load failed:", e)
         return None
 
+def get_postgres_connection():
+    return psycopg2.connect(
+        host="nozomi.proxy.rlwy.net",
+        port=45865,
+        user="postgres",   # 👈 update if Railway gave different username
+        password="BPfofFISBoCNEKDBjoHcDWvmVLXuotem",
+        dbname="railway",
+        cursor_factory=RealDictCursor
+    )
+
 
 # --- Login/Logout ---
 @admin_bp.route('/login', methods=['GET', 'POST'])
@@ -59,7 +70,7 @@ def admin_login():
         username = request.form['username']
         password = request.form['password']
         try:
-            conn = get_mysql_connection()
+            conn = get_postgres_connection()
             cur = conn.cursor()
             cur.execute("SELECT * FROM admin WHERE username = %s", (username,))
             admin = cur.fetchone()
@@ -98,65 +109,52 @@ def admin_logout():
 @admin_bp.route('/staff-members')
 @admin_required
 def view_staff_members():
+    staff_list = []
+    conn = get_postgres_connection()
     try:
-        conn = get_mysql_connection()
-        cur = conn.cursor(pymysql.cursors.DictCursor)
-        cur.execute("SELECT * FROM staff ORDER BY date_created DESC")
-        staff_list = cur.fetchall()
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute("SELECT * FROM staff ORDER BY date_created DESC")
+            staff_list = cur.fetchall()
     except Exception as e:
         current_app.logger.error(f"Error fetching staff members: {e}")
         flash("Could not load staff members.", "danger")
-        staff_list = []
     finally:
-        cur.close()
         conn.close()
-
     return render_template('admin/staff_members.html', staff_list=staff_list)
 
 
 # --- Delete Staff Member ---
-
 @admin_bp.route('/delete-staff/<int:staff_id>', methods=['POST'])
 @admin_required
 def delete_staff_user(staff_id):
+    conn = get_postgres_connection()
     try:
-        conn = get_mysql_connection()
-        cur = conn.cursor(pymysql.cursors.DictCursor)
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute("SELECT * FROM staff WHERE id = %s", (staff_id,))
+            staff = cur.fetchone()
+            if not staff:
+                flash("Staff member not found.", "danger")
+                return redirect(url_for('admin.view_staff_members'))
 
-        # Confirm staff exists
-        cur.execute("SELECT * FROM staff WHERE id = %s", (staff_id,))
-        staff = cur.fetchone()
-        if not staff:
-            flash("Staff member not found.", "danger")
-            return redirect(url_for('admin.view_staff_members'))
+            cur.execute("""
+                SELECT COUNT(*) AS count FROM leave_applications 
+                WHERE staff_id = %s AND status IN ('pending', 'approved')
+            """, (staff_id,))
+            result = cur.fetchone()
+            if result and result['count'] > 0:
+                flash("Cannot delete staff with pending or approved applications.", "warning")
+                return redirect(url_for('admin.view_staff_members'))
 
-        # Check for pending/approved applications
-        cur.execute("""
-            SELECT COUNT(*) AS count FROM leave_applications 
-            WHERE staff_id = %s AND status IN ('pending', 'approved')
-        """, (staff_id,))
-        result = cur.fetchone()
-        if result and result['count'] > 0:
-            flash("Cannot delete staff with pending or approved applications.", "warning")
-            return redirect(url_for('admin.view_staff_members'))
-
-        # ✅ Step 1: Delete related applications first
-        cur.execute("DELETE FROM leave_applications WHERE staff_id = %s", (staff_id,))
-
-        # ✅ Step 2: Delete the staff record
-        cur.execute("DELETE FROM staff WHERE id = %s", (staff_id,))
+            cur.execute("DELETE FROM leave_applications WHERE staff_id = %s", (staff_id,))
+            cur.execute("DELETE FROM staff WHERE id = %s", (staff_id,))
         conn.commit()
-
         flash("Staff and their applications deleted successfully.", "success")
-
     except Exception as e:
-        error_message = f"Error deleting staff: {str(e)}"
-        current_app.logger.error(error_message)
-        flash(error_message, "danger")
+        conn.rollback()
+        current_app.logger.error(f"Error deleting staff: {e}")
+        flash("Error deleting staff.", "danger")
     finally:
-        cur.close()
         conn.close()
-
     return redirect(url_for('admin.view_staff_members'))
 
 
@@ -181,8 +179,8 @@ def create_application():
             leave_balance = int(leave_balance_raw) if leave_balance_raw.isdigit() else 0
 
             # Try to fetch staff ID (optional)
-            conn = get_mysql_connection()
-            cur = conn.cursor(pymysql.cursors.DictCursor)
+            conn = get_postgres_connection()
+            cur = conn.cursor(cursor_factory=RealDictCursor)
             cur.execute("SELECT id FROM staff WHERE pno = %s", (request.form['pno'],))
             staff_row = cur.fetchone()
             staff_id = staff_row['id'] if staff_row else None  # NULL if staff doesn't exist
@@ -253,8 +251,8 @@ def admin_dashboard(status_filter=None):
     if session.pop('login_success', None):
         flash('Login successful', 'success')
 
-    conn = get_mysql_connection()
-    cur = conn.cursor(pymysql.cursors.DictCursor)
+    conn = get_postgres_connection()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
 
     # Base query with improved selection
     base_query = """
@@ -266,14 +264,14 @@ def admin_dashboard(status_filter=None):
         la.leave_days,
         la.start_date,
         la.end_date,
-        DATEDIFF(la.end_date, la.start_date) + 1 AS calendar_days,
+        (la.end_date - la.start_date) + 1 AS calendar_days,
         la.status,
         la.leave_type,
         la.approved_by,
         la.approved_at,
         la.rejected_by,
         la.rejected_at,
-        la.created_at,
+        la.submitted_at AS created_at,  -- FIXED: Use submitted_at instead of created_at
         la.supporting_doc,
         s.id AS staff_id,
         s.leave_balance
@@ -330,9 +328,9 @@ def admin_dashboard(status_filter=None):
 
     # Build final query
     if conditions:
-        query = base_query + " WHERE " + " AND ".join(conditions) + " ORDER BY la.created_at DESC"
+        query = base_query + " WHERE " + " AND ".join(conditions) + " ORDER BY la.submitted_at DESC"
     else:
-        query = base_query + " ORDER BY la.created_at DESC"
+        query = base_query + " ORDER BY la.submitted_at DESC"
 
     # Execute applications query
     cur.execute(query, tuple(params))
@@ -407,227 +405,177 @@ def admin_dashboard(status_filter=None):
 @admin_bp.route('/application/edit/<int:id>', methods=['GET', 'POST'])
 @admin_required
 def edit_application(id):
-    conn = get_mysql_connection()
-    cur = conn.cursor()
-    conn.commit()
-    conn.rollback()
+    conn = get_postgres_connection()
+    try:
+        if request.method == 'POST':
+            with conn.cursor() as cur:
+                cur.execute("""
+                    UPDATE leave_applications SET 
+                        name = %s, 
+                        pno = %s, 
+                        designation = %s, 
+                        leave_days = %s, 
+                        start_date = %s, 
+                        end_date = %s, 
+                        contact_address = %s, 
+                        contact_tel = %s, 
+                        status = %s
+                    WHERE id = %s
+                """, (
+                    request.form['name'],
+                    request.form['pno'],
+                    request.form['designation'],
+                    request.form['leave_days'],
+                    request.form['start_date'],
+                    request.form['end_date'],
+                    request.form['contact_address'],
+                    request.form['contact_tel'],
+                    request.form['status'],
+                    id
+                ))
+            conn.commit()
+            flash('Application updated successfully', 'success')
+            return redirect(url_for('admin.admin_dashboard'))
 
-    if request.method == 'POST':
-        # Update the leave application with the submitted form data
-        cur.execute("""
-            UPDATE leave_applications SET 
-                name = %s, 
-                pno = %s, 
-                designation = %s, 
-                leave_days = %s, 
-                start_date = %s, 
-                end_date = %s, 
-                contact_address = %s, 
-                contact_tel = %s, 
-                status = %s
-            WHERE id = %s
-        """, (
-            request.form['name'],
-            request.form['pno'],
-            request.form['designation'],
-            request.form['leave_days'],
-            request.form['start_date'],
-            request.form['end_date'],
-            request.form['contact_address'],
-            request.form['contact_tel'],
-            request.form['status'],
-            id
-        ))
-        conn = get_mysql_connection()
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute("""
+                SELECT 
+                    la.*, 
+                    COALESCE(s.username, la.name) AS display_name,
+                    COALESCE(s.pno, la.pno) AS display_pno
+                FROM leave_applications la
+                LEFT JOIN staff s ON la.staff_id = s.id
+                WHERE la.id = %s
+            """, (id,))
+            application = cur.fetchone()
 
-        cur = conn.cursor()
+        if not application:
+            flash('Application not found', 'danger')
+            return redirect(url_for('admin.admin_dashboard'))
 
-        conn.commit()
-        conn.rollback()
+        return render_template('admin/edit_application.html', application=application)
 
-        cur.close()
-
-        flash('Application updated successfully', 'success')
-        return redirect(url_for('admin.admin_dashboard'))
-
-    # Fetch application for display
-    cur.execute("""
-    SELECT 
-    la.*, 
-    CASE 
-        WHEN s.username IS NOT NULL THEN s.username 
-        ELSE la.name 
-    END AS display_name,
-    CASE 
-        WHEN s.pno IS NOT NULL THEN s.pno 
-        ELSE la.pno 
-    END AS display_pno
-FROM leave_applications la
-LEFT JOIN staff s ON la.staff_id = s.id
-WHERE la.id = %s
-
-""", (id,))
-
-    application = cur.fetchone()
-    cur.close()
-
-    if not application:
-        flash('Application not found', 'danger')
-        return redirect(url_for('admin.admin_dashboard'))
-
-    return render_template('admin/edit_application.html', application=application)
+    finally:
+        conn.close()
 
 
 @admin_bp.route('/application/delete/<int:id>', methods=['POST'])
 @admin_required
 def delete_application(id):
+    conn = get_postgres_connection()
     try:
-        conn = get_mysql_connection()
-        cur = conn.cursor()
-        cur.execute("SELECT * FROM leave_applications")
-        data = cur.fetchall()
-
-        cur.execute("DELETE FROM leave_applications WHERE id = %s", (id,))
-        conn = get_mysql_connection()
-
-        cur = conn.cursor()
-
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM leave_applications WHERE id = %s", (id,))
         conn.commit()
-        conn.rollback()
-
-        cur.close()
         flash('Application deleted successfully', 'success')
     except Exception as e:
-        conn = get_mysql_connection()
-        cur = conn.cursor()
-        conn.commit()
         conn.rollback()
+        current_app.logger.error(f"Delete error: {str(e)}")
         flash('Failed to delete application', 'danger')
-        # Log the error: current_app.logger.error(f"Delete error: {str(e)}")
+    finally:
+        conn.close()
     return redirect(url_for('admin.admin_dashboard'))
 
 
 @admin_bp.route('/approve/<int:app_id>', methods=['GET', 'POST'])
 @admin_required
 def approve_application(app_id):
-    conn = get_mysql_connection()
-    cur = conn.cursor(pymysql.cursors.DictCursor)
-
-    if request.method == 'POST':
-        approval_comments = request.form.get('approval_comments', '').strip()
-
-        try:
-            # ✅ Fetch application details
-            cur.execute("SELECT * FROM leave_applications WHERE id = %s", (app_id,))
-            application = cur.fetchone()
-            if not application:
-                flash('Application not found', 'danger')
-                return redirect(url_for('admin.admin_dashboard'))
-
-            if application['status'] == 'approved':
-                flash('Application already approved', 'info')
-                return redirect(url_for('admin.admin_dashboard'))
-
-            staff_id = application['staff_id']
-            leave_days = application['leave_days']
-            leave_type = application['leave_type']
-
-            # ✅ Fetch staff leave balance, email, name
-            cur.execute("SELECT leave_balance, email, username FROM staff WHERE id = %s FOR UPDATE", (staff_id,))
-            staff = cur.fetchone()
-            if not staff:
-                flash('Staff not found', 'danger')
-                return redirect(url_for('admin.admin_dashboard'))
-
-            # ✅ Check and deduct only if Annual leave
-            if leave_type == 'Annual':
-                if staff['leave_balance'] < leave_days:
-                    flash('Insufficient annual leave balance', 'warning')
+    conn = get_postgres_connection()
+    try:
+        if request.method == 'POST':
+            approval_comments = request.form.get('approval_comments', '').strip()
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute("SELECT * FROM leave_applications WHERE id = %s", (app_id,))
+                application = cur.fetchone()
+                if not application:
+                    flash('Application not found', 'danger')
                     return redirect(url_for('admin.admin_dashboard'))
 
-                cur.execute("""
-                    UPDATE staff 
-                    SET leave_balance = leave_balance - %s 
-                    WHERE id = %s
-                """, (leave_days, staff_id))
+                if application['status'] == 'approved':
+                    flash('Application already approved', 'info')
+                    return redirect(url_for('admin.admin_dashboard'))
 
-            # ✅ Approve leave
-            cur.execute("""
-                UPDATE leave_applications 
-                SET status = 'approved', approved_at = NOW(), approved_by = %s, approval_comments = %s
-                WHERE id = %s
-            """, (session['admin_username'], approval_comments, app_id))
+                staff_id = application['staff_id']
+                leave_days = application['leave_days']
+                leave_type = application['leave_type']
+
+                cur.execute("SELECT leave_balance, email, username FROM staff WHERE id = %s FOR UPDATE", (staff_id,))
+                staff = cur.fetchone()
+                if not staff:
+                    flash('Staff not found', 'danger')
+                    return redirect(url_for('admin.admin_dashboard'))
+
+                if leave_type == 'Annual':
+                    if staff['leave_balance'] < leave_days:
+                        flash('Insufficient annual leave balance', 'warning')
+                        return redirect(url_for('admin.admin_dashboard'))
+                    cur.execute("UPDATE staff SET leave_balance = leave_balance - %s WHERE id = %s", (leave_days, staff_id))
+
+                cur.execute("""
+                    UPDATE leave_applications 
+                    SET status = 'approved', approved_at = NOW(), approved_by = %s, approval_comments = %s
+                    WHERE id = %s
+                """, (session['admin_username'], approval_comments, app_id))
 
             conn.commit()
-
-            # ✅ Log & Notify
             log_action(f"Admin {session['admin_username']} approved leave ID {app_id}",
                        admin_username=session['admin_username'])
-
             send_email(
                 subject="Leave Approved",
                 recipients=[staff['email']],
                 body=f"Hello {staff['username']},\n\nYour {leave_type} leave request has been approved. Kindly login and print your leave form."
             )
-
             flash(f'{leave_type} leave approved successfully.', 'success')
             return redirect(url_for('admin.admin_dashboard'))
 
-        except Exception as e:
-            conn.rollback()
-            current_app.logger.error(f"Approval failed: {str(e)}", exc_info=True)
-            flash(f'Error during approval: {str(e)}', 'danger')
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute("SELECT * FROM leave_applications WHERE id = %s", (app_id,))
+            app = cur.fetchone()
+        return render_template('admin/approve_form.html', app=app)
 
-        finally:
-            cur.close()
-
-    # Render approval form
-    cur.execute("SELECT * FROM leave_applications WHERE id = %s", (app_id,))
-    app = cur.fetchone()
-    cur.close()
-
-    return render_template('admin/approve_form.html', app=app)
+    except Exception as e:
+        conn.rollback()
+        current_app.logger.error(f"Approval failed: {str(e)}", exc_info=True)
+        flash(f'Error during approval: {str(e)}', 'danger')
+        return redirect(url_for('admin.admin_dashboard'))
+    finally:
+        conn.close()
 
 
 @admin_bp.route('/application/reject/<int:id>', methods=['GET', 'POST'])
 @admin_required
 def reject_application(id):
-    if request.method == 'POST':
-        try:
+    conn = get_postgres_connection()
+    try:
+        if request.method == 'POST':
             rejection_reason = request.form.get('rejection_reason', '').strip()
             if not rejection_reason:
                 flash('Please provide a rejection reason', 'danger')
                 return redirect(url_for('admin.reject_application', id=id))
 
-            conn = get_mysql_connection()
-            cur = conn.cursor(pymysql.cursors.DictCursor)
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute("""
+                    SELECT la.*, s.email, s.username 
+                    FROM leave_applications la
+                    LEFT JOIN staff s ON la.staff_id = s.id
+                    WHERE la.id = %s AND la.status = 'pending'
+                """, (id,))
+                application = cur.fetchone()
 
-            # Fetch application and staff info
-            cur.execute("""
-                SELECT la.*, s.email, s.username 
-                FROM leave_applications la
-                LEFT JOIN staff s ON la.staff_id = s.id
-                WHERE la.id = %s AND la.status = 'pending'
-            """, (id,))
-            application = cur.fetchone()
+                if not application:
+                    flash('Application not found or already processed', 'danger')
+                    return redirect(url_for('admin.admin_dashboard'))
 
-            if not application:
-                flash('Application not found or already processed', 'danger')
-                return redirect(url_for('admin.admin_dashboard'))
-
-            # Update application with rejection details
-            cur.execute("""
-                UPDATE leave_applications SET 
-                    status = 'rejected',
-                    rejected_by = %s,
-                    rejected_at = NOW(),
-                    rejection_reason = %s
-                WHERE id = %s
-            """, (session['admin_username'], rejection_reason, id))
+                cur.execute("""
+                    UPDATE leave_applications SET 
+                        status = 'rejected',
+                        rejected_by = %s,
+                        rejected_at = NOW(),
+                        rejection_reason = %s
+                    WHERE id = %s
+                """, (session['admin_username'], rejection_reason, id))
 
             conn.commit()
-
-            # Send email notification if staff exists
             if application.get('email'):
                 send_email(
                     subject="Leave Application Rejected",
@@ -642,29 +590,25 @@ Reason: {rejection_reason}
 Please contact HR if you have any questions.
 """
                 )
-
             flash('Application rejected with reason sent to staff', 'success')
             return redirect(url_for('admin.admin_dashboard'))
 
-        except Exception as e:
-            conn.rollback()
-            current_app.logger.error(f"Rejection error: {str(e)}")
-            flash(f'Error rejecting application: {str(e)}', 'danger')
-            return redirect(url_for('admin.admin_dashboard'))
-        finally:
-            if 'cur' in locals():
-                cur.close()
+        return render_template('admin/reject_application.html', application_id=id)
 
-    # GET request - show rejection form
-    return render_template('admin/reject_application.html', application_id=id)
-
+    except Exception as e:
+        conn.rollback()
+        current_app.logger.error(f"Rejection error: {str(e)}")
+        flash(f'Error rejecting application: {str(e)}', 'danger')
+        return redirect(url_for('admin.admin_dashboard'))
+    finally:
+        conn.close()
 
 @admin_bp.route('/application/print/<int:app_id>')
 @admin_required
 def print_application(app_id):
     try:
-        conn = get_mysql_connection()
-        cur = conn.cursor(pymysql.cursors.DictCursor)
+        conn = get_postgres_connection()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
 
         # Fetch the application and related staff info
         cur.execute("""
@@ -784,8 +728,8 @@ def print_application(app_id):
 @admin_required
 def delete_staff(staff_id):
     try:
-        conn = get_mysql_connection()
-        cur = conn.cursor(pymysql.cursors.DictCursor)
+        conn = get_postgres_connection()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
 
         # Step 1: Check staff exists
         cur.execute("SELECT username FROM staff WHERE id = %s", (staff_id,))
@@ -829,8 +773,9 @@ def admin_home_redirect():
 @admin_bp.route('/audit-log')
 @admin_required
 def view_audit_log():
-    conn = get_mysql_connection()
-    cur = conn.cursor(pymysql.cursors.DictCursor)
+    conn = get_postgres_connection()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+
     cur.execute("SELECT * FROM activity_logs ORDER BY timestamp DESC LIMIT 100")
     logs = cur.fetchall()
     cur.close()
@@ -840,8 +785,8 @@ def view_audit_log():
 @admin_bp.route('/export/excel')
 @admin_required
 def export_leave_excel():
-    conn = get_mysql_connection()
-    cur = conn.cursor(pymysql.cursors.DictCursor)
+    conn = get_postgres_connection()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
 
     # ✅ Fetch all leave applications
     cur.execute("""
@@ -875,5 +820,9 @@ def export_leave_excel():
 @admin_bp.route('/uploads/<path:filename>')
 @admin_required
 def download_uploaded_document(filename):
+    # Remove the 'uploads/' prefix if it exists in the filename
+    if filename.startswith('uploads/'):
+        filename = filename.replace('uploads/', '', 1)
+    
     uploads_folder = os.path.join(current_app.root_path, 'static', 'uploads')
     return send_from_directory(uploads_folder, filename, as_attachment=True)
