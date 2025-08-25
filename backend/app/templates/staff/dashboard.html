@@ -213,21 +213,29 @@
     <!-- Staff Info Header -->
     <div class="staff-info mb-4">
         <div class="d-flex justify-content-between align-items-center">
+            
+            <!-- Left side: Welcome + P/No -->
             <div>
-                <h3 class="mb-1">Welcome, {{ session.staff_name }}</h3>
+                <h3 class="mb-1">Welcome, {{ staff.username }}</h3>
                 <div class="text-muted">
-                    <span class="me-3">P/No: {{ session.staff_pno }}</span>
+                    <span class="me-3">P/No: {{ staff.pno }}</span>
+                    
                     <br>
                     <small class="text-muted d-block mt-1">
                         <em>Note:</em> Annual, Sick, Maternity, Paternity, and Compassionate Leave are granted per policy.
                     </small>
                 </div>
             </div>
-            <div>
+
+            <!-- Right side: Profile Pic + Apply Button -->
+            <div class="d-flex align-items-center">
+
+                <!-- Apply Button -->
                 <a href="{{ url_for('staff.create_application') }}" class="btn btn-ict">
                     <i class="fas fa-plus-circle me-1"></i> Apply for Leave
                 </a>
             </div>
+
         </div>
     </div>
 </div>

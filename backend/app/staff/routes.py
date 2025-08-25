@@ -337,8 +337,12 @@ def staff_dashboard():
         conn = get_postgres_connection()
         cur = conn.cursor(cursor_factory=RealDictCursor)
 
-        # Get staff info
-        cur.execute("SELECT username, pno FROM staff WHERE id = %s", (staff_id,))
+        # ✅ Get full staff info including profile picture & designation
+        cur.execute("""
+            SELECT id, username, pno, email, designation, profile_pic, leave_balance
+            FROM staff 
+            WHERE id = %s
+        """, (staff_id,))
         staff = cur.fetchone()
         if not staff:
             flash('Staff record not found', 'danger')
@@ -412,7 +416,7 @@ def staff_dashboard():
                 'name': staff['username'],
                 'pno': staff['pno'],
                 'leave_type': app['leave_type'],
-                'leave_days': working_days,  # ✅ Show real leave days now
+                'leave_days': working_days,
                 'start_date': app['start_date'],
                 'end_date': app['end_date'],
                 'status': app['status'],
@@ -430,6 +434,7 @@ def staff_dashboard():
 
         return render_template(
             'staff/dashboard.html',
+            staff=staff,   # ✅ Pass full staff profile to template
             applications=applications,
             total=len(applications),
             approved=status_counts['approved'],
@@ -444,11 +449,11 @@ def staff_dashboard():
         flash("Unexpected error occurred", "danger")
         return redirect(url_for('staff.staff_login'))
     finally:
-        # ✅ Safe cleanup - check if variables exist
         if 'cur' in locals() and cur:
             cur.close()
         if 'conn' in locals() and conn:
             conn.close()
+
 
 # Profile and Settings Routes
 @staff_bp.route('/profile')
@@ -532,73 +537,6 @@ def change_password():
         return redirect(url_for('staff.staff_profile'))
 
     return render_template('staff/change_password.html')
-
-
-@staff_bp.route('/notification-settings', methods=['GET', 'POST'])
-@staff_required
-def notification_settings():
-    staff_id = session.get('staff_id')
-
-    if request.method == 'POST':
-        email_notifications = request.form.get('email_notifications') == 'on'
-        sms_notifications = request.form.get('sms_notifications') == 'on'
-        leave_approvals = request.form.get('leave_approvals') == 'on'
-
-        try:
-            conn = get_postgres_connection()
-            cur = conn.cursor(cursor_factory=RealDictCursor)
-
-            cur.execute("""
-                UPDATE staff 
-                SET email_notifications = %s, 
-                    sms_notifications = %s, 
-                    leave_approvals = %s 
-                WHERE id = %s
-            """, (email_notifications, sms_notifications, leave_approvals, staff_id))
-            conn.commit()
-            flash('Notification settings updated successfully', 'success')
-        except Exception as e:
-            conn.rollback()
-            current_app.logger.error(f"Error updating notification settings: {e}")
-            flash('Failed to update notification settings', 'danger')
-        finally:
-            if 'cur' in locals():
-                cur.close()
-            if 'conn' in locals():
-                conn.close()
-        return redirect(url_for('staff.notification_settings'))
-
-    try:
-        conn = get_postgres_connection()
-        cur = conn.cursor(cursor_factory=RealDictCursor)
-
-        cur.execute("""
-            SELECT email_notifications, sms_notifications, leave_approvals 
-            FROM staff 
-            WHERE id = %s
-        """, (staff_id,))
-        settings = cur.fetchone()
-
-        if not settings:
-            settings = {
-                'email_notifications': True,
-                'sms_notifications': False,
-                'leave_approvals': True
-            }
-    except Exception as e:
-        current_app.logger.error(f"Error fetching notification settings: {e}")
-        settings = {
-            'email_notifications': True,
-            'sms_notifications': False,
-            'leave_approvals': True
-        }
-    finally:
-        if 'cur' in locals():
-            cur.close()
-        if 'conn' in locals():
-            conn.close()
-
-    return render_template('staff/notification_settings.html', settings=settings)
 
 
 # Leave Application Routes
@@ -1159,3 +1097,4 @@ def verify_email(token):
                 pass
     
     return redirect(url_for('staff.staff_login'))
+
