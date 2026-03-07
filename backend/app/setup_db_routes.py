@@ -9,8 +9,11 @@ def setup_database():
         conn = get_postgres_connection()
         cur = conn.cursor()
 
+        cur.execute("DROP TABLE IF EXISTS leave_applications CASCADE")
+        cur.execute("DROP TABLE IF EXISTS staff CASCADE")
+
         cur.execute("""
-            CREATE TABLE IF NOT EXISTS staff (
+            CREATE TABLE staff (
                 id SERIAL PRIMARY KEY,
                 pno VARCHAR(20) NOT NULL UNIQUE,
                 username VARCHAR(50) NOT NULL,
@@ -30,7 +33,7 @@ def setup_database():
         """)
 
         cur.execute("""
-            CREATE TABLE IF NOT EXISTS leave_applications (
+            CREATE TABLE leave_applications (
                 id SERIAL PRIMARY KEY,
                 staff_id INT,
                 name VARCHAR(100) NOT NULL,
