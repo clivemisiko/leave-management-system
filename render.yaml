@@ -1,0 +1,25 @@
+services:
+  # Web Service
+  - type: web
+    name: leave-management-system
+    env: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    autoDeploy: true
+    envVars:
+      - key: FLASK_APP
+        value: run.py
+      - key: FLASK_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: POSTGRES_URI
+        fromDatabase:
+          name: leave-management-db
+          property: connectionString
+
+  # PostgreSQL Database
+  - type: postgres
+    name: leave-management-db
+    plan: free
+    ipAllowList: []

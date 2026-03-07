@@ -14,11 +14,11 @@ RUN pip install -r requirements.txt
 
 # Set environment variables
 ENV FLASK_APP=run.py
-ENV FLASK_RUN_HOST=0.0.0.0
-ENV PORT=8080
+ENV FLASK_ENV=production
+ENV PORT=10000
 
-# Expose the port Fly.io expects
-EXPOSE 8080
+# Expose the port Render expects
+EXPOSE 10000
 
-# Start the app
-CMD ["flask", "run", "--port=8080"]
+# Start the app with gunicorn (better for production)
+CMD ["gunicorn", "--bind", "0.0.0.0:10000", "run:app"]
