@@ -16,7 +16,7 @@ services:
       - key: FLASK_ENV
         value: production
       - key: PORT
-        value: 10000
+        value: 1000
       - key: POSTGRES_URI
         fromDatabase:
           name: leave-management-db

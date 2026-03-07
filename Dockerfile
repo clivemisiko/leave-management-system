@@ -26,10 +26,10 @@ RUN pip install -r requirements.txt
 # Set environment variables
 ENV FLASK_APP=run.py
 ENV FLASK_ENV=production
-ENV PORT=10000
+ENV PORT=1000
 
 # Expose the port Render expects
-EXPOSE 10000
+EXPOSE 1000
 
 # Start the app with gunicorn (better for production)
-CMD ["gunicorn", "--bind", "0.0.0.0:10000", "run:app"]
+CMD ["gunicorn", "--bind", "0.0.0.0:1000", "run:app"]
