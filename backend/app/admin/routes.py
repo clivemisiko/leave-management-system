@@ -48,16 +48,6 @@ def get_signature_base64():
         print("❌ Signature load failed:", e)
         return None
 
-def get_postgres_connection():
-    return psycopg2.connect(
-        host="nozomi.proxy.rlwy.net",
-        port=45865,
-        user="postgres",   # 👈 update if Railway gave different username
-        password="BPfofFISBoCNEKDBjoHcDWvmVLXuotem",
-        dbname="railway",
-        cursor_factory=RealDictCursor
-    )
-
 
 # --- Login/Logout ---
 @admin_bp.route('/login', methods=['GET', 'POST'])

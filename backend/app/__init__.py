@@ -52,8 +52,7 @@ def create_app():
         if conn:
             conn.close()
             print("✅ Connected to PostgreSQL successfully.")
-            print(f"   Database: {os.getenv('POSTGRES_DB', 'railway')}")
-            print(f"   Host: {os.getenv('POSTGRES_HOST', 'nozomi.proxy.rlwy.net')}")
+            print(f"   Using Render database")
         else:
             print("❌ PostgreSQL connection failed: returned None")
     except Exception as e:

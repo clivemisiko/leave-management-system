@@ -73,15 +73,7 @@ def staff_required(f):
 
     return decorated_function
 
-def get_postgres_connection():
-    return psycopg2.connect(
-        host="nozomi.proxy.rlwy.net",
-        port=45865,
-        user="postgres",   # 👈 update if Railway gave different username
-        password="BPfofFISBoCNEKDBjoHcDWvmVLXuotem",
-        dbname="railway",
-        cursor_factory=RealDictCursor
-    )
+# Remove duplicate get_postgres_connection function - use the one from extensions.py
 
 # Authentication Routes
 @staff_bp.route('/login', methods=['GET', 'POST'])
