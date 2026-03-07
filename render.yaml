@@ -6,6 +6,10 @@ services:
     plan: free
     dockerfilePath: ./Dockerfile
     autoDeploy: true
+    healthCheck:
+      path: /db-check
+      initialDelaySeconds: 30
+      timeoutSeconds: 10
     envVars:
       - key: FLASK_APP
         value: run.py
