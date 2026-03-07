@@ -25,12 +25,12 @@ def create_app():
     app.config['MAX_CONTENT_LENGTH'] = 2 * 1024 * 1024  # 2MB upload limit
 
     # ✅ Database Configuration (for SQLAlchemy)
-    # Use POSTGRES_URI from Render
-    database_url = os.getenv("POSTGRES_URI")
+    # Try POSTGRES_URI (Render) then DATABASE_URL (fallback)
+    database_url = os.getenv("POSTGRES_URI") or os.getenv("DATABASE_URL")
     if not database_url:
-        raise ValueError("POSTGRES_URI environment variable not set. Please check your Render configuration.")
+        print("⚠️  WARNING: No database URL found (POSTGRES_URI / DATABASE_URL). DB features will not work.")
     
-    app.config['SQLALCHEMY_DATABASE_URI'] = database_url
+    app.config['SQLALCHEMY_DATABASE_URI'] = database_url or 'sqlite:///fallback.db'
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
     # ✅ Email (Flask-Mail)

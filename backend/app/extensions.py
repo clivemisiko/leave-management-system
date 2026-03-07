@@ -12,11 +12,11 @@ def get_postgres_connection():
     Returns a PostgreSQL connection using the Render database connection string.
     """
     try:
-        # Use the POSTGRES_URI from Render (set in render.yaml)
-        database_url = os.getenv("POSTGRES_URI")
-        
+        # Try POSTGRES_URI first (set in render.yaml), fall back to DATABASE_URL
+        database_url = os.getenv("POSTGRES_URI") or os.getenv("DATABASE_URL")
+
         if not database_url:
-            raise ValueError("POSTGRES_URI environment variable not set")
+            raise ValueError("Neither POSTGRES_URI nor DATABASE_URL environment variable is set")
         
         # Parse the POSTGRES_URI
         result = urlparse(database_url)

@@ -240,4 +240,11 @@ def create_tables():
 
 
 if __name__ == '__main__':
-    create_tables()
+    try:
+        create_tables()
+    except Exception as e:
+        print(f"⚠️  setup_db.py encountered an error (app will still start): {e}")
+        import traceback
+        traceback.print_exc()
+        import sys
+        sys.exit(0)  # Exit 0 so gunicorn still launches
