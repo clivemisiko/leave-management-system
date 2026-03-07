@@ -31,5 +31,5 @@ ENV PORT=1000
 # Expose the port Render expects
 EXPOSE 1000
 
-# Start the app with gunicorn (better for production)
-CMD ["sh", "-c", "gunicorn --bind 0.0.0.0:$PORT run:app"]
+# Run DB migrations then start the app with gunicorn
+CMD ["sh", "-c", "python setup_db.py && gunicorn --bind 0.0.0.0:$PORT run:app"]
