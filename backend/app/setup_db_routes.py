@@ -11,7 +11,7 @@ def setup_database():
 
         cur.execute("""
             CREATE TABLE IF NOT EXISTS staff (
-                id INT AUTO_INCREMENT PRIMARY KEY,
+                id SERIAL PRIMARY KEY,
                 pno VARCHAR(20) NOT NULL,
                 username VARCHAR(100) NOT NULL,
                 password VARCHAR(255) NOT NULL
@@ -20,12 +20,12 @@ def setup_database():
 
         cur.execute("""
             CREATE TABLE IF NOT EXISTS applications (
-                id INT AUTO_INCREMENT PRIMARY KEY,
+                id SERIAL PRIMARY KEY,
                 staff_id INT,
                 leave_days INT,
                 start_date DATE,
                 end_date DATE,
-                submitted_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 status VARCHAR(20) DEFAULT 'Pending',
                 FOREIGN KEY (staff_id) REFERENCES staff(id)
             )
