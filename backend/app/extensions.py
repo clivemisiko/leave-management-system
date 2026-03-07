@@ -9,27 +9,30 @@ db = SQLAlchemy()
 
 def get_postgres_connection():
     """
-    Returns a PostgreSQL connection using the correct Railway connection string.
+    Returns a PostgreSQL connection using the Render database connection string.
     """
     try:
-        # Use the connection string from Railway dashboard
-        database_url = os.getenv("DATABASE_URL", "postgresql://postgres:BPfofFISBoCNEKDBjoHcDWvmVLXuotem@nozomi.proxy.rlwy.net:45865/railway")
+        # Use the POSTGRES_URI from Render (set in render.yaml)
+        database_url = os.getenv("POSTGRES_URI")
         
-        # Parse the DATABASE_URL
+        if not database_url:
+            raise ValueError("POSTGRES_URI environment variable not set")
+        
+        # Parse the POSTGRES_URI
         result = urlparse(database_url)
         
-        # Connect with SSL required (Railway needs this)
+        # Connect with SSL (Render PostgreSQL requires this)
         conn = psycopg2.connect(
             dbname=result.path.lstrip("/"),
             user=result.username,
             password=result.password,
             host=result.hostname,
             port=result.port or 5432,
-            sslmode='require'  # Railway requires SSL
+            sslmode='require'  # Render requires SSL
         )
         return conn
 
     except Exception as e:
         print(f"❌ Database connection failed: {e}")
-        print(f"   Attempted connection to: {os.getenv('POSTGRES_HOST', 'nozomi.proxy.rlwy.net')}:{os.getenv('POSTGRES_PORT', 45865)}")
+        print(f"   POSTGRES_URI: {os.getenv('POSTGRES_URI', 'Not set')}")
         return None
