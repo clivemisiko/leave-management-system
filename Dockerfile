@@ -32,4 +32,4 @@ ENV PORT=1000
 EXPOSE 1000
 
 # Start the app with gunicorn (better for production)
-CMD ["gunicorn", "--bind", "0.0.0.0:1000", "run:app"]
+CMD ["sh", "-c", "gunicorn --bind 0.0.0.0:$PORT run:app"]
