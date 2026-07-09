@@ -1,10 +1,10 @@
 from flask import Blueprint, current_app, render_template, request, redirect, url_for, flash, session, make_response
 from werkzeug.security import check_password_hash
 from werkzeug.utils import secure_filename
-from weasyprint import HTML
 from backend.app.extensions import get_postgres_connection, mail, psycopg2
 from backend.app.utils.audit import log_action
 from backend.app.utils.email import send_email
+from backend.app.utils.pdf import render_pdf
 import os
 from functools import wraps
 from datetime import datetime
@@ -705,7 +705,7 @@ def print_application(app_id):
             logo_base64=logo_base64,
             signature_base64=signature_base64
         )
-        pdf = HTML(string=rendered, base_url=request.url_root).write_pdf()
+        pdf = render_pdf(rendered, request.url_root)
 
         response = make_response(pdf)
         response.headers['Content-Type'] = 'application/pdf'

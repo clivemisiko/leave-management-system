@@ -15,8 +15,8 @@ from backend.app.utils.auth import update_password
 from backend.app.utils.audit import log_action
 from flask_mail import Message  # Added this import
 from datetime import datetime, date
-from weasyprint import HTML
 from psycopg2.extras import RealDictCursor
+from backend.app.utils.pdf import render_pdf
 from flask import (
     Blueprint, render_template, request, redirect, url_for,
     flash, session, make_response, abort, send_from_directory,
@@ -951,7 +951,7 @@ def print_application(app_id):
             logo_base64=logo_base64,
             signature_base64=signature_base64
         )
-        pdf = HTML(string=rendered, base_url=request.url_root).write_pdf()
+        pdf = render_pdf(rendered, request.url_root)
 
         response = make_response(pdf)
         response.headers['Content-Type'] = 'application/pdf'
