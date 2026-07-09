@@ -86,6 +86,10 @@ def staff_login():
         password = request.form['password']
 
         conn = get_postgres_connection()
+        if not conn:
+            flash('Database connection failed. Please try again shortly.', 'danger')
+            return redirect(url_for('staff.staff_login'))
+
         cur = conn.cursor(cursor_factory=RealDictCursor)
 
         if '@' in login_input:

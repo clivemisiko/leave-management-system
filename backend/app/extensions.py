@@ -7,6 +7,14 @@ from urllib.parse import urlparse
 mail = Mail()
 db = SQLAlchemy()
 
+def _mask_database_url(database_url):
+    if not database_url:
+        return "Not set"
+    result = urlparse(database_url)
+    if not result.hostname:
+        return "Invalid URL"
+    return f"{result.scheme}://{result.username or '<user>'}:***@{result.hostname}:{result.port or 5432}{result.path}"
+
 def get_postgres_connection():
     """
     Returns a PostgreSQL connection using the Render database connection string.
@@ -28,11 +36,17 @@ def get_postgres_connection():
             password=result.password,
             host=result.hostname,
             port=result.port or 5432,
-            sslmode='require'  # Render requires SSL
+            sslmode='require',
+            connect_timeout=int(os.getenv("POSTGRES_CONNECT_TIMEOUT", "3")),
+            keepalives=1,
+            keepalives_idle=30,
+            keepalives_interval=10,
+            keepalives_count=3,
         )
         return conn
 
     except Exception as e:
-        print(f"❌ Database connection failed: {e}")
-        print(f"   POSTGRES_URI: {os.getenv('POSTGRES_URI', 'Not set')}")
+        database_url = os.getenv("POSTGRES_URI") or os.getenv("DATABASE_URL")
+        print(f"Database connection failed: {e}")
+        print(f"Database URL: {_mask_database_url(database_url)}")
         return None

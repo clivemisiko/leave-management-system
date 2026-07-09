@@ -7,6 +7,9 @@ setup_db_bp = Blueprint('setup_db', __name__)
 def setup_database():
     try:
         conn = get_postgres_connection()
+        if not conn:
+            return "DB Error: could not connect to PostgreSQL. Check POSTGRES_URI or DATABASE_URL.", 503
+
         cur = conn.cursor()
 
         cur.execute("DROP TABLE IF EXISTS leave_applications CASCADE")
@@ -60,13 +63,15 @@ def setup_database():
         """)
 
         conn.commit()
-        return "✅ Tables created successfully!"
+        return "Tables created successfully!"
 
     except Exception as e:
         if 'conn' in locals():
             conn.rollback()
-        return f"❌ Error: {e}"
+        return f"Error: {e}", 500
 
     finally:
         if 'cur' in locals():
             cur.close()
+        if 'conn' in locals() and conn:
+            conn.close()

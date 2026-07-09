@@ -28,7 +28,7 @@ def create_app():
     # Try POSTGRES_URI (Render) then DATABASE_URL (fallback)
     database_url = os.getenv("POSTGRES_URI") or os.getenv("DATABASE_URL")
     if not database_url:
-        print("⚠️  WARNING: No database URL found (POSTGRES_URI / DATABASE_URL). DB features will not work.")
+        print("WARNING: No database URL found (POSTGRES_URI / DATABASE_URL). DB features will not work.")
     
     app.config['SQLALCHEMY_DATABASE_URI'] = database_url or 'sqlite:///fallback.db'
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -51,12 +51,12 @@ def create_app():
         conn = get_postgres_connection()
         if conn:
             conn.close()
-            print("✅ Connected to PostgreSQL successfully.")
-            print(f"   Using Render database")
+            print("Connected to PostgreSQL successfully.")
+            print("Using configured PostgreSQL database.")
         else:
-            print("❌ PostgreSQL connection failed: returned None")
+            print("PostgreSQL connection failed: returned None")
     except Exception as e:
-        print(f"❌ PostgreSQL connection failed: {e}")
+        print(f"PostgreSQL connection failed: {e}")
 
     # ✅ Global Template Context
     @app.context_processor
@@ -120,9 +120,9 @@ def get_logo_base64():
             return f"data:image/png;base64,{encoded}"
     except FileNotFoundError:
         try:
-            current_app.logger.warning(f"⚠️ Logo not found at: {logo_path}")
+            current_app.logger.warning(f"Logo not found at: {logo_path}")
         except:
-            print(f"⚠️ Logo not found at: {logo_path}")
+            print(f"Logo not found at: {logo_path}")
         return None
 
 
@@ -134,7 +134,7 @@ def load_signature_base64():
             return 'data:image/png;base64,' + base64.b64encode(image_file.read()).decode('utf-8')
     except Exception as e:
         try:
-            current_app.logger.warning(f"⚠️ Signature load failed: {e}")
+            current_app.logger.warning(f"Signature load failed: {e}")
         except:
-            print(f"⚠️ Signature load failed: {e}")
+            print(f"Signature load failed: {e}")
         return None

@@ -15,10 +15,10 @@ def add_column_if_missing(cur, table, column, definition):
     """, (table, column))
     exists = cur.fetchone()[0]
     if not exists:
-        print(f"  ➕ Adding column '{column}' to '{table}'...")
+        print(f"  Adding column '{column}' to '{table}'...")
         cur.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
     else:
-        print(f"  ✅ Column '{column}' already exists in '{table}'.")
+        print(f"  Column '{column}' already exists in '{table}'.")
 
 
 def create_tables():
@@ -28,7 +28,7 @@ def create_tables():
         try:
             conn = get_postgres_connection()
             if not conn:
-                print("❌ Failed to get database connection")
+                print("Failed to get database connection")
                 return
 
             cur = conn.cursor()
@@ -111,6 +111,9 @@ def create_tables():
                 "rejected_at":      "TIMESTAMP",
                 "approved_by":      "VARCHAR(100)",
                 "approved_at":      "TIMESTAMP",
+                "approval_comments":"TEXT",
+                "rejection_reason": "TEXT",
+                "outside_country":  "BOOLEAN DEFAULT FALSE",
                 "supporting_doc":   "VARCHAR(255)",
             }
             for col, defn in leave_columns.items():
@@ -130,9 +133,9 @@ def create_tables():
                         ADD CONSTRAINT leave_applications_staff_id_fkey
                         FOREIGN KEY (staff_id) REFERENCES staff(id) ON DELETE CASCADE
                     """)
-                    print("  ➕ Added FK constraint on leave_applications.staff_id.")
+                    print("  Added FK constraint on leave_applications.staff_id.")
                 except Exception as fk_err:
-                    print(f"  ⚠️  Could not add FK (may be ok): {fk_err}")
+                    print(f"  Could not add FK (may be ok): {fk_err}")
                     conn.rollback()
                     # Re-open the transaction
                     conn = get_postgres_connection()
@@ -149,6 +152,17 @@ def create_tables():
                     changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     old_values JSONB,
                     new_values JSONB
+                )
+            """)
+
+            # Activity logs used by the admin audit-log page.
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS activity_logs (
+                    id SERIAL PRIMARY KEY,
+                    staff_id INT,
+                    admin_username VARCHAR(100),
+                    action TEXT NOT NULL,
+                    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             """)
 
@@ -172,7 +186,7 @@ def create_tables():
                     "INSERT INTO admin (username, password) VALUES (%s, %s)",
                     ('admin', hashed_pw)
                 )
-                print("✅ Default admin user created.")
+                print("Default admin user created.")
 
             # ── Seed sample staff user ────────────────────────────────────────
             cur.execute("SELECT id FROM staff WHERE pno = %s", ('EMP001',))
@@ -185,7 +199,7 @@ def create_tables():
                     ('EMP001', 'john_doe', hashed_pw, 'john@example.com',
                      'Developer', 'IT Department', 30, True)
                 )
-                print("✅ Sample staff user created.")
+                print("Sample staff user created.")
 
             # ── Seed default email templates ──────────────────────────────────
             cur.execute("SELECT COUNT(*) FROM email_templates")
@@ -217,18 +231,18 @@ def create_tables():
                         "INSERT INTO email_templates (template_name, subject, body) VALUES (%s, %s, %s)",
                         (template_name, subject, body)
                     )
-                print("✅ Default email templates created.")
+                print("Default email templates created.")
 
             conn.commit()
-            print("✅ All tables and columns verified/created successfully.")
-            print("✅ Default admin credentials: admin / admin123")
-            print("✅ Sample staff credentials: EMP001 / staff123")
-            print("✅ Database setup completed successfully! 🎉")
+            print("All tables and columns verified/created successfully.")
+            print("Default admin credentials: admin / admin123")
+            print("Sample staff credentials: EMP001 / staff123")
+            print("Database setup completed successfully!")
 
         except Exception as e:
             if conn:
                 conn.rollback()
-            print(f"❌ Setup failed: {e}")
+            print(f"Setup failed: {e}")
             import traceback
             traceback.print_exc()
 
@@ -243,7 +257,7 @@ if __name__ == '__main__':
     try:
         create_tables()
     except Exception as e:
-        print(f"⚠️  setup_db.py encountered an error (app will still start): {e}")
+        print(f"setup_db.py encountered an error (app will still start): {e}")
         import traceback
         traceback.print_exc()
         import sys

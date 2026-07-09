@@ -61,7 +61,11 @@ def admin_login():
         password = request.form['password']
         try:
             conn = get_postgres_connection()
-            cur = conn.cursor()
+            if not conn:
+                flash('Database connection failed. Please check configuration.', 'danger')
+                return render_template('admin/login.html')
+
+            cur = conn.cursor(cursor_factory=RealDictCursor)
             cur.execute("SELECT * FROM admin WHERE username = %s", (username,))
             admin = cur.fetchone()
             cur.close()
@@ -103,7 +107,11 @@ def view_staff_members():
     conn = get_postgres_connection()
     try:
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
-            cur.execute("SELECT * FROM staff ORDER BY date_created DESC")
+            cur.execute("""
+                SELECT *, created_at AS date_created
+                FROM staff
+                ORDER BY created_at DESC
+            """)
             staff_list = cur.fetchall()
     except Exception as e:
         current_app.logger.error(f"Error fetching staff members: {e}")
@@ -346,8 +354,8 @@ def admin_dashboard(status_filter=None):
 
     # Get staff list with leave balances
     cur.execute("""
-        SELECT id, username, pno, designation, leave_balance, 
-               email, date_created 
+        SELECT id, username, pno, designation, leave_balance,
+               email, created_at AS date_created
         FROM staff 
         ORDER BY username ASC
     """)

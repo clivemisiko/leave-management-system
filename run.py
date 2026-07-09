@@ -1,20 +1,15 @@
 from dotenv import load_dotenv
 load_dotenv()
 
+import os
 import sys
 from pathlib import Path
 sys.path.append(str(Path(__file__).resolve().parent / "backend"))
 
-from flask import redirect, url_for, session, render_template
 from backend.app import create_app
 from backend.app.extensions import get_postgres_connection
 
 app = create_app()
-
-@app.route('/')
-def index():
-    session.clear()
-    return render_template('landing.html')
 
 @app.route('/db-check')
 def db_check():
@@ -22,14 +17,16 @@ def db_check():
     cur = None
     try:
         conn = get_postgres_connection()
+        if not conn:
+            return "DB Error: could not connect to PostgreSQL. Check POSTGRES_URI or DATABASE_URL.", 503
+
         cur = conn.cursor()
         cur.execute("SELECT table_name FROM information_schema.tables WHERE table_schema='public'")
         tables = cur.fetchall()
-        cur.close()
 
-        return f"✅ Connected to MySQL! Tables: {tables}"
+        return f"Connected to PostgreSQL. Tables: {tables}"
     except Exception as e:
-        return f"❌ DB Error: {e}"
+        return f"DB Error: {e}", 500
     finally:
         if cur:
             cur.close()
@@ -41,4 +38,4 @@ if __name__ == '__main__':
     for rule in app.url_map.iter_rules():
         print(f"{rule} --> {rule.endpoint}")
 
-    app.run(debug=True, port=5000)
+    app.run(debug=True, port=int(os.getenv("PORT", 5000)))

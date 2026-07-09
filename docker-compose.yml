@@ -1,0 +1,14 @@
+services:
+  leave-app:
+    build: .
+    container_name: leave-app
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      FLASK_ENV: production
+      PORT: "10000"
+    ports:
+      - "10000:10000"
+    volumes:
+      - ./uploads:/app/uploads
